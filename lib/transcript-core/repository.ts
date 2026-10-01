@@ -1,48 +1,52 @@
 import type {
-  AudioAsset,
   ProcessingJob,
   Recording,
-  SegmentText,
   Transcript,
+  TranscriptAsset,
   TranscriptRevision,
-  TranscriptSegment
+  TranscriptSegment,
+  TranscriptSegmentVersion,
+  TranscriptWorkspace,
+  TranscriptWorkspaceMembership
 } from "@/lib/transcript-core/domain";
+
+export type ObservedOriginalAssetCreateInput = {
+  workspaceId: string;
+  storageBucket: "transcript-core-observed-originals";
+  storagePath: string;
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+};
 
 export type RecordingCreateInput = {
   workspaceId: string;
+  sourceAssetId: string;
   title: string;
-  recordedAt?: string | null;
-};
-
-export type OriginalAssetCreateInput = {
-  workspaceId: string;
-  recordingId: string;
-  storagePath: string;
-  contentType?: string | null;
-  byteSize?: number | null;
-  sha256?: string | null;
 };
 
 export interface TranscriptCoreRepository {
+  getWorkspace(workspaceId: string): Promise<TranscriptWorkspace | null>;
+  getMembership(workspaceId: string, userId: string): Promise<TranscriptWorkspaceMembership | null>;
+  createObservedOriginalAsset(input: ObservedOriginalAssetCreateInput): Promise<TranscriptAsset>;
+  getAsset(workspaceId: string, assetId: string): Promise<TranscriptAsset | null>;
   createRecording(input: RecordingCreateInput): Promise<Recording>;
   getRecording(workspaceId: string, recordingId: string): Promise<Recording | null>;
   listRecordings(workspaceId: string): Promise<Recording[]>;
-  attachOriginalAsset(input: OriginalAssetCreateInput): Promise<AudioAsset>;
-  getOriginalAsset(workspaceId: string, recordingId: string): Promise<AudioAsset | null>;
-  listProcessingJobs(workspaceId: string, recordingId: string): Promise<ProcessingJob[]>;
-  getTranscript(workspaceId: string, recordingId: string): Promise<Transcript | null>;
-  listRevisions(workspaceId: string, transcriptId: string): Promise<TranscriptRevision[]>;
-  listSegments(workspaceId: string, transcriptId: string): Promise<TranscriptSegment[]>;
-  getSegmentText(workspaceId: string, revisionId: string, segmentId: string): Promise<SegmentText | null>;
+  listProcessingJobs(workspaceId: string, sourceAssetId: string): Promise<ProcessingJob[]>;
+  getTranscript(recordingId: string): Promise<Transcript | null>;
+  listRevisions(transcriptId: string): Promise<TranscriptRevision[]>;
+  listSegments(transcriptId: string): Promise<TranscriptSegment[]>;
+  getSegmentVersion(revisionId: string, segmentId: string): Promise<TranscriptSegmentVersion | null>;
 }
 
 export interface TranscriptMediaStore {
   createOriginalUpload(input: {
     workspaceId: string;
-    recordingId: string;
     fileName: string;
     contentType: string;
   }): Promise<{
+    storageBucket: "transcript-core-observed-originals";
     storagePath: string;
     uploadUrl: string;
     expiresAt: string;
@@ -50,7 +54,7 @@ export interface TranscriptMediaStore {
 
   createPlaybackUrl(input: {
     workspaceId: string;
-    asset: AudioAsset;
+    asset: TranscriptAsset;
     startMs?: number;
     endMs?: number;
   }): Promise<{
@@ -64,7 +68,7 @@ export interface TranscriptionProvider {
   modelName: string;
   transcribe(input: {
     recordingId: string;
-    asset: AudioAsset;
+    asset: TranscriptAsset;
     startMs: number;
     endMs: number;
   }): Promise<{
@@ -73,6 +77,7 @@ export interface TranscriptionProvider {
       startMs: number;
       endMs: number;
       text: string;
+      providerSpeaker?: string | null;
     }>;
     providerRequestId?: string;
   }>;
