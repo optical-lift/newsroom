@@ -98,14 +98,13 @@ export default function LoginForm({ unauthorized = false }: { unauthorized?: boo
         </form>
       ) : (
         <form className="login-form" onSubmit={verifyCode}>
-          <p className="login-message">Check your email for the six-digit sign-in code.</p>
+          <p className="login-message">Check your email for the sign-in code.</p>
           <label>
             Code
             <input
               type="text"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
               value={code}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, ""))}
               required
