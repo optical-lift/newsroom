@@ -20,8 +20,8 @@ export const forumWorkspace = {
       label: "Transcripts",
       description: "Recordings, searchable transcripts, speaker correction and source playback.",
       status: "architecture-ready",
-      statusLabel: "Architecture ready",
-      nextStep: "Implement the standalone Transcript Core service before connecting private newsroom recordings."
+      statusLabel: "Custody spine defined",
+      nextStep: "Provision the dedicated Newsroom auth/database/storage boundary, then prove private original-audio custody before transcription is connected."
     },
     {
       slug: "municipal",
@@ -42,10 +42,10 @@ export const forumWorkspace = {
     {
       slug: "markets",
       label: "Markets",
-      description: "A shared recurring markets update with one canonical edition for the newsroom.",
+      description: "Marshall's exact eight-value Mitchell markets block, shared as one canonical newsroom edition.",
       status: "architecture-ready",
-      statusLabel: "Update structure ready",
-      nextStep: "Define the authoritative source set and run cadence, then connect scheduled edition generation."
+      statusLabel: "Mitchell spec recovered",
+      nextStep: "Connect MarketWatch, CHS Farmers Alliance Mitchell cash bids, POET Mitchell and HPP cash bids; then shadow-run the 8/8 block before scheduling it."
     }
   ] satisfies Desk[]
 };
