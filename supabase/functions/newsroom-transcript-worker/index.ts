@@ -9,11 +9,20 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const GROQ_MODEL = "whisper-large-v3-turbo";
 const DEFAULT_FREE_TIER_MAX_BYTES = 25 * 1024 * 1024;
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-headers": "authorization, x-client-info, apikey, content-type",
+  "access-control-allow-methods": "POST, OPTIONS"
+};
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json", "cache-control": "no-store" }
+    headers: {
+      ...CORS_HEADERS,
+      "content-type": "application/json",
+      "cache-control": "no-store"
+    }
   });
 }
 
@@ -64,17 +73,8 @@ type ChunkClaim = {
   chunk: ChunkPacket | null;
 };
 
-type GroqSegment = {
-  start?: number;
-  end?: number;
-  text?: string;
-};
-
-type GroqResponse = {
-  text?: string;
-  segments?: GroqSegment[];
-  x_groq?: { id?: string };
-};
+type GroqSegment = { start?: number; end?: number; text?: string };
+type GroqResponse = { text?: string; segments?: GroqSegment[]; x_groq?: { id?: string } };
 
 const service = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -110,11 +110,7 @@ async function failChunk(chunk: ChunkPacket, retryable: boolean, code: string, m
   if (error) console.error("Transcript chunk failure state could not be persisted", error.message);
 }
 
-async function transcribeAsset(input: {
-  storageBucket: string;
-  storagePath: string;
-  offsetMs: number;
-}) {
+async function transcribeAsset(input: { storageBucket: string; storagePath: string; offsetMs: number }) {
   const { data: signed, error: signedError } = await service.storage
     .from(input.storageBucket)
     .createSignedUrl(input.storagePath, 10 * 60);
@@ -136,11 +132,7 @@ async function transcribeAsset(input: {
 
   const raw = await response.text();
   let parsed: GroqResponse = {};
-  try {
-    parsed = raw ? JSON.parse(raw) as GroqResponse : {};
-  } catch {
-    parsed = {};
-  }
+  try { parsed = raw ? JSON.parse(raw) as GroqResponse : {}; } catch { parsed = {}; }
 
   if (!response.ok) {
     const retryable = response.status === 429 || response.status >= 500;
@@ -166,40 +158,22 @@ async function transcribeAsset(input: {
     .filter((segment) => Number.isFinite(segment.startMs) && Number.isFinite(segment.endMs) && segment.endMs > segment.startMs && segment.text.length > 0);
 
   if (normalized.length === 0) {
-    return {
-      ok: false as const,
-      retryable: false,
-      code: "EMPTY_TRANSCRIPT_SEGMENTS",
-      detail: "Groq returned no valid timestamped transcript segments."
-    };
+    return { ok: false as const, retryable: false, code: "EMPTY_TRANSCRIPT_SEGMENTS", detail: "Groq returned no valid timestamped transcript segments." };
   }
 
-  return {
-    ok: true as const,
-    segments: normalized,
-    providerRequestId: parsed.x_groq?.id ?? ""
-  };
+  return { ok: true as const, segments: normalized, providerRequestId: parsed.x_groq?.id ?? "" };
 }
 
 async function processDirectJob(packet: WorkerPacket) {
-  const { data: claimed, error: claimError } = await service.rpc("transcript_core_claim_processing_job", {
-    p_job_id: packet.job_id
-  });
+  const { data: claimed, error: claimError } = await service.rpc("transcript_core_claim_processing_job", { p_job_id: packet.job_id });
   if (claimError) throw claimError;
   if (claimed !== true) return { state: "already_claimed" };
-
   try {
-    const result = await transcribeAsset({
-      storageBucket: packet.storage_bucket,
-      storagePath: packet.storage_path,
-      offsetMs: 0
-    });
-
+    const result = await transcribeAsset({ storageBucket: packet.storage_bucket, storagePath: packet.storage_path, offsetMs: 0 });
     if (!result.ok) {
       await failJob(packet, result.retryable, result.code, result.detail, !result.retryable);
       return { state: result.retryable ? "retryable_provider_error" : "terminal_provider_error" };
     }
-
     const { data: revisionId, error: completeError } = await service.rpc("transcript_core_complete_transcription_job", {
       p_job_id: packet.job_id,
       p_provider: "groq",
@@ -207,7 +181,6 @@ async function processDirectJob(packet: WorkerPacket) {
       p_segments: result.segments
     });
     if (completeError) throw completeError;
-
     await deleteQueueMessage(packet);
     return { state: "ready", revisionId, segmentCount: result.segments.length };
   } catch (error) {
@@ -222,37 +195,22 @@ async function chainNextChunk(authorization: string, jobId: string, workspaceId:
   try {
     const response = await fetch(`${SUPABASE_URL}/functions/v1/newsroom-transcript-worker`, {
       method: "POST",
-      headers: {
-        authorization,
-        apikey: SUPABASE_ANON_KEY,
-        "content-type": "application/json"
-      },
+      headers: { authorization, apikey: SUPABASE_ANON_KEY, "content-type": "application/json" },
       body: JSON.stringify({ jobId, workspaceId })
     });
-    if (!response.ok) {
-      console.error("Transcript chunk chain stopped", { jobId, status: response.status, body: (await response.text()).slice(0, 1000) });
-    }
+    if (!response.ok) console.error("Transcript chunk chain stopped", { jobId, status: response.status, body: (await response.text()).slice(0, 1000) });
   } catch (error) {
-    console.error("Transcript chunk chain request failed", {
-      jobId,
-      error: error instanceof Error ? error.message : String(error)
-    });
+    console.error("Transcript chunk chain request failed", { jobId, error: error instanceof Error ? error.message : String(error) });
   }
 }
 
 async function processChunk(packet: WorkerPacket, chunk: ChunkPacket, authorization: string) {
   try {
-    const result = await transcribeAsset({
-      storageBucket: chunk.storage_bucket,
-      storagePath: chunk.storage_path,
-      offsetMs: chunk.start_ms
-    });
-
+    const result = await transcribeAsset({ storageBucket: chunk.storage_bucket, storagePath: chunk.storage_path, offsetMs: chunk.start_ms });
     if (!result.ok) {
       await failChunk(chunk, result.retryable, result.code, result.detail);
       return { state: result.retryable ? "retryable_chunk_error" : "terminal_chunk_error" };
     }
-
     const { data: completion, error: completeError } = await service.rpc("transcript_core_complete_transcription_chunk", {
       p_chunk_id: chunk.chunk_id,
       p_provider: "groq",
@@ -261,43 +219,33 @@ async function processChunk(packet: WorkerPacket, chunk: ChunkPacket, authorizat
       p_segments: result.segments
     });
     if (completeError) throw completeError;
-
     const revisionId = completion?.revision_id as string | null | undefined;
     if (revisionId) {
       await deleteQueueMessage(packet);
       return { state: "ready", revisionId };
     }
-
     await chainNextChunk(authorization, packet.job_id, packet.workspace_id);
     return { state: "chunk_ready", chunkId: chunk.chunk_id };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error ?? "Transcript chunk worker failed.");
     await failChunk(chunk, true, "TRANSCRIPT_CHUNK_WORKER_ERROR", message);
-    console.error("Newsroom transcript chunk worker failed", {
-      jobId: packet.job_id,
-      chunkId: chunk.chunk_id,
-      error: message
-    });
+    console.error("Newsroom transcript chunk worker failed", { jobId: packet.job_id, chunkId: chunk.chunk_id, error: message });
     return { state: "retryable_chunk_error" };
   }
 }
 
 Deno.serve(async (request: Request) => {
-  if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
-  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY || !GROQ_API_KEY) {
-    return json({ error: "Transcript worker configuration is unavailable." }, 503);
+  if (request.method === "OPTIONS") {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
   }
+  if (request.method !== "POST") return json({ error: "Method not allowed." }, 405);
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY || !GROQ_API_KEY) return json({ error: "Transcript worker configuration is unavailable." }, 503);
 
   const authorization = request.headers.get("authorization") ?? "";
   if (!/^Bearer\s+\S+/i.test(authorization)) return json({ error: "Authentication required." }, 401);
 
   let body: { jobId?: string; workspaceId?: string } = {};
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: "Valid JSON body required." }, 400);
-  }
-
+  try { body = await request.json(); } catch { return json({ error: "Valid JSON body required." }, 400); }
   const jobId = body.jobId?.trim() ?? "";
   const workspaceId = body.workspaceId?.trim() ?? "";
   if (!validUuid(jobId) || !validUuid(workspaceId)) return json({ error: "Invalid transcript job reference." }, 400);
@@ -306,83 +254,27 @@ Deno.serve(async (request: Request) => {
     global: { headers: { Authorization: authorization } },
     auth: { persistSession: false, autoRefreshToken: false }
   });
-
-  const { data: canEdit, error: editError } = await userClient.rpc("transcript_core_can_workspace_edit", {
-    target_workspace: workspaceId
-  });
+  const { data: canEdit, error: editError } = await userClient.rpc("transcript_core_can_workspace_edit", { target_workspace: workspaceId });
   if (editError || canEdit !== true) return json({ error: "Workspace edit access required." }, 403);
 
-  const { data, error: packetError } = await service.rpc("transcript_core_load_job_with_asset", {
-    p_job_id: jobId
-  });
+  const { data, error: packetError } = await service.rpc("transcript_core_load_job_with_asset", { p_job_id: jobId });
   if (packetError) return json({ error: "Transcript processing job is unavailable." }, 404);
-
   const packet = data as WorkerPacket;
-  if (packet.workspace_id !== workspaceId || packet.job_type !== "transcribe_recording") {
-    return json({ error: "Transcript processing job does not belong to this workspace." }, 403);
-  }
-  if (packet.storage_bucket !== "transcript-core-observed-originals" || !packet.storage_path.startsWith(`${workspaceId}/`)) {
-    return json({ error: "Transcript source custody check failed." }, 409);
-  }
+  if (packet.workspace_id !== workspaceId || packet.job_type !== "transcribe_recording") return json({ error: "Transcript processing job does not belong to this workspace." }, 403);
+  if (packet.storage_bucket !== "transcript-core-observed-originals" || !packet.storage_path.startsWith(`${workspaceId}/`)) return json({ error: "Transcript source custody check failed." }, 409);
 
-  const { data: chunkClaimData, error: chunkClaimError } = await service.rpc("transcript_core_claim_next_transcription_chunk", {
-    p_job_id: packet.job_id
-  });
-  if (chunkClaimError && !/function .* does not exist/i.test(chunkClaimError.message ?? "")) {
-    return json({ error: "Transcript chunk state could not be loaded." }, 409);
-  }
-
-  const chunkClaim = (chunkClaimData ?? {
-    total_chunks: 0,
-    ready_chunks: 0,
-    processing_chunks: 0,
-    retryable_chunks: 0,
-    terminal_chunks: 0,
-    chunk: null
-  }) as ChunkClaim;
+  const { data: chunkClaimData, error: chunkClaimError } = await service.rpc("transcript_core_claim_next_transcription_chunk", { p_job_id: packet.job_id });
+  if (chunkClaimError && !/function .* does not exist/i.test(chunkClaimError.message ?? "")) return json({ error: "Transcript chunk state could not be loaded." }, 409);
+  const chunkClaim = (chunkClaimData ?? { total_chunks: 0, ready_chunks: 0, processing_chunks: 0, retryable_chunks: 0, terminal_chunks: 0, chunk: null }) as ChunkClaim;
 
   if (chunkClaim.total_chunks > 0) {
-    if (chunkClaim.terminal_chunks > 0) {
-      return json({
-        ok: false,
-        jobId,
-        state: "chunk_failed_terminal",
-        totalChunks: chunkClaim.total_chunks,
-        readyChunks: chunkClaim.ready_chunks
-      }, 409);
-    }
-
-    if (!chunkClaim.chunk) {
-      return json({
-        ok: true,
-        jobId,
-        state: chunkClaim.ready_chunks === chunkClaim.total_chunks ? "finalizing" : "chunk_processing",
-        totalChunks: chunkClaim.total_chunks,
-        readyChunks: chunkClaim.ready_chunks
-      }, 202);
-    }
-
+    if (chunkClaim.terminal_chunks > 0) return json({ ok: false, jobId, state: "chunk_failed_terminal", totalChunks: chunkClaim.total_chunks, readyChunks: chunkClaim.ready_chunks }, 409);
+    if (!chunkClaim.chunk) return json({ ok: true, jobId, state: chunkClaim.ready_chunks === chunkClaim.total_chunks ? "finalizing" : "chunk_processing", totalChunks: chunkClaim.total_chunks, readyChunks: chunkClaim.ready_chunks }, 202);
     EdgeRuntime.waitUntil(processChunk(packet, chunkClaim.chunk, authorization));
-    return json({
-      ok: true,
-      jobId,
-      state: "processing_chunk",
-      chunkId: chunkClaim.chunk.chunk_id,
-      chunkSequence: chunkClaim.chunk.sequence,
-      totalChunks: chunkClaim.total_chunks,
-      readyChunks: chunkClaim.ready_chunks
-    }, 202);
+    return json({ ok: true, jobId, state: "processing_chunk", chunkId: chunkClaim.chunk.chunk_id, chunkSequence: chunkClaim.chunk.sequence, totalChunks: chunkClaim.total_chunks, readyChunks: chunkClaim.ready_chunks }, 202);
   }
 
-  if (packet.byte_size > maxBytes()) {
-    return json({
-      ok: false,
-      jobId,
-      state: "chunks_required",
-      sourcePreserved: true,
-      maxDirectBytes: maxBytes()
-    }, 409);
-  }
+  if (packet.byte_size > maxBytes()) return json({ ok: false, jobId, state: "chunks_required", sourcePreserved: true, maxDirectBytes: maxBytes() }, 409);
 
   EdgeRuntime.waitUntil(processDirectJob(packet));
   return json({ ok: true, jobId, state: "processing_direct", processingStarted: true }, 202);

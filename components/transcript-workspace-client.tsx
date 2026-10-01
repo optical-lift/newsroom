@@ -133,25 +133,26 @@ function formatClock(ms: number) {
 
 function processingLabel(status: ProcessingStatus, transcriptReady: boolean) {
   if (transcriptReady) return "Transcript ready";
-  if (status === "queued") return "Queued";
-  if (status === "processing") return "Transcribing";
-  if (status === "partially_processed") return "Transcribing";
-  if (status === "failed_retryable") return "Needs retry";
+  if (status === "queued") return "Starting transcription";
+  if (status === "processing" || status === "partially_processed") return "Transcribing";
+  if (status === "failed_retryable") return "Transcription interrupted";
   if (status === "failed_terminal") return "Needs attention";
-  return "Source preserved";
+  return "Recording preserved";
+}
+
+function isActiveProcessing(status: ProcessingStatus) {
+  return status === "queued" || status === "processing" || status === "partially_processed";
 }
 
 async function hashBlobSha256(blob: Blob, onProgress?: (fraction: number) => void) {
   const hasher = await createSHA256();
   hasher.init();
-
   for (let offset = 0; offset < blob.size; offset += HASH_CHUNK_BYTES) {
     const end = Math.min(blob.size, offset + HASH_CHUNK_BYTES);
     const bytes = new Uint8Array(await blob.slice(offset, end).arrayBuffer());
     hasher.update(bytes);
     onProgress?.(blob.size > 0 ? end / blob.size : 1);
   }
-
   return hasher.digest("hex");
 }
 
@@ -183,15 +184,11 @@ async function resumableUpload(input: {
         contentType: input.contentType,
         cacheControl: "3600"
       },
-      onError(error) {
-        reject(error);
-      },
+      onError(error) { reject(error); },
       onProgress(bytesUploaded, bytesTotal) {
         input.onProgress?.(bytesTotal > 0 ? bytesUploaded / bytesTotal : 0);
       },
-      onSuccess() {
-        resolve();
-      }
+      onSuccess() { resolve(); }
     });
 
     upload.findPreviousUploads()
@@ -209,6 +206,14 @@ async function listRecordings(client: SupabaseClient) {
   });
   if (error) throw error;
   return (Array.isArray(data) ? data : []) as RecordingListItem[];
+}
+
+async function getRecordingDetail(client: SupabaseClient, recordingId: string) {
+  const { data, error } = await client.rpc("transcript_core_get_recording_detail", {
+    p_recording_id: recordingId
+  });
+  if (error) throw error;
+  return data as RecordingDetail;
 }
 
 async function getChunkProgress(client: SupabaseClient, jobId: string) {
@@ -242,9 +247,23 @@ export default function TranscriptWorkspaceClient() {
     setRecordings(await listRecordings(client));
   }, [client, session]);
 
+  const refreshSelected = useCallback(async (recordingId: string) => {
+    const detail = await getRecordingDetail(client, recordingId);
+    setSelected(detail);
+    if (detail.processingJob?.id) {
+      try {
+        setSelectedProgress(await getChunkProgress(client, detail.processingJob.id));
+      } catch {
+        setSelectedProgress(null);
+      }
+    } else {
+      setSelectedProgress(null);
+    }
+    return detail;
+  }, [client]);
+
   useEffect(() => {
     let alive = true;
-
     client.auth.getSession().then(({ data, error: sessionError }) => {
       if (!alive) return;
       if (sessionError) setError(asMessage(sessionError));
@@ -267,9 +286,7 @@ export default function TranscriptWorkspaceClient() {
         setPlaybackUrl(null);
         return;
       }
-      listRecordings(client)
-        .then(setRecordings)
-        .catch((caught) => setError(asMessage(caught)));
+      listRecordings(client).then(setRecordings).catch((caught) => setError(asMessage(caught)));
     });
 
     return () => {
@@ -280,18 +297,44 @@ export default function TranscriptWorkspaceClient() {
 
   useEffect(() => {
     if (!session) return;
-    const hasActiveJob = recordings.some((recording) =>
-      recording.processingStatus === "queued" ||
-      recording.processingStatus === "processing" ||
-      recording.processingStatus === "partially_processed"
-    );
+    const hasActiveJob = recordings.some((recording) => isActiveProcessing(recording.processingStatus));
     if (!hasActiveJob) return;
-
     const timer = window.setInterval(() => {
       refreshLibrary().catch((caught) => setError(asMessage(caught)));
     }, 5000);
     return () => window.clearInterval(timer);
   }, [recordings, refreshLibrary, session]);
+
+  useEffect(() => {
+    if (!session || selected || recordings.length === 0) return;
+    void openRecording(recordings[0].id);
+  }, [recordings, selected, session]);
+
+  useEffect(() => {
+    const recordingId = selected?.id;
+    const status = selected?.processingJob?.status ?? null;
+    if (!session || !recordingId || !isActiveProcessing(status)) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const detail = await refreshSelected(recordingId);
+        if (cancelled) return;
+        await refreshLibrary();
+        if (detail.transcript?.currentRevisionId || detail.processingJob?.status === "ready") {
+          setNotice("Transcript ready.");
+        }
+      } catch (caught) {
+        if (!cancelled) setError(asMessage(caught));
+      }
+    };
+
+    const timer = window.setInterval(() => void poll(), 3000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [refreshLibrary, refreshSelected, selected?.id, selected?.processingJob?.status, session]);
 
   async function openRecording(recordingId: string) {
     setError(null);
@@ -299,21 +342,7 @@ export default function TranscriptWorkspaceClient() {
     setSelectedProgress(null);
     setSearch("");
     try {
-      const { data, error: detailError } = await client.rpc("transcript_core_get_recording_detail", {
-        p_recording_id: recordingId
-      });
-      if (detailError) throw detailError;
-      const detail = data as RecordingDetail;
-      setSelected(detail);
-
-      if (detail.processingJob?.id) {
-        try {
-          setSelectedProgress(await getChunkProgress(client, detail.processingJob.id));
-        } catch {
-          setSelectedProgress(null);
-        }
-      }
-
+      const detail = await refreshSelected(recordingId);
       const { data: signed, error: signedError } = await client.storage
         .from(detail.sourceAsset.storageBucket)
         .createSignedUrl(detail.sourceAsset.storagePath, 60 * 60);
@@ -332,7 +361,7 @@ export default function TranscriptWorkspaceClient() {
     return data as { state?: string; totalChunks?: number; readyChunks?: number } | null;
   }
 
-  async function continueTranscription(jobId: string, recordingId?: string) {
+  async function retryTranscription(jobId: string, recordingId: string) {
     setError(null);
     try {
       const worker = await invokeWorker(jobId);
@@ -341,10 +370,10 @@ export default function TranscriptWorkspaceClient() {
       } else if (worker?.state === "chunk_failed_terminal") {
         setNotice("One audio chunk needs attention before this transcript can finish.");
       } else {
-        setNotice("Transcription is running.");
+        setNotice("Transcription restarted. It will continue in the background.");
       }
       await refreshLibrary();
-      if (recordingId) window.setTimeout(() => void openRecording(recordingId), 2500);
+      await refreshSelected(recordingId);
     } catch (caught) {
       setError(asMessage(caught));
     }
@@ -439,7 +468,7 @@ export default function TranscriptWorkspaceClient() {
 
       const jobId = ingest?.processing_job_id as string | undefined;
       const recordingId = ingest?.recording_id as string | undefined;
-      if (!jobId) throw new Error("Transcript Core did not return a processing job ID.");
+      if (!jobId || !recordingId) throw new Error("Transcript Core did not return a recording job.");
 
       if (file.size > DIRECT_TRANSCRIPTION_MAX_BYTES) {
         setPhase("Preparing long recording — keep this tab open until chunk upload finishes");
@@ -456,13 +485,13 @@ export default function TranscriptWorkspaceClient() {
       setProgress(1);
       setNotice(
         file.size > DIRECT_TRANSCRIPTION_MAX_BYTES
-          ? "Original preserved. Chunk preparation is complete and transcription is running."
-          : "Original preserved. Transcription started."
+          ? "Original preserved. Chunk preparation is complete. Transcription will continue in the background."
+          : "Original preserved. Transcription is running in the background. You can leave this page."
       );
       setFile(null);
       setTitle("");
       await refreshLibrary();
-      if (recordingId) window.setTimeout(() => void openRecording(recordingId), 2500);
+      await openRecording(recordingId);
     } catch (caught) {
       setError(asMessage(caught));
     } finally {
@@ -495,11 +524,7 @@ export default function TranscriptWorkspaceClient() {
   }
 
   if (!sessionLoaded) {
-    return (
-      <section className="transcript-live-panel transcript-session-card">
-        <p>Opening recording library…</p>
-      </section>
-    );
+    return <section className="transcript-live-panel transcript-session-card"><p>Opening recording library…</p></section>;
   }
 
   if (!session) {
@@ -511,100 +536,52 @@ export default function TranscriptWorkspaceClient() {
     );
   }
 
+  const transcriptReady = Boolean(selected?.transcript?.currentRevisionId && selected.transcript.segments.length);
+  const selectedStatus = selected?.processingJob?.status ?? null;
+
   return (
-    <div className="transcript-live-grid">
-      <section className="transcript-live-panel transcript-library-panel">
-        <div className="transcript-panel-heading">
-          <div>
-            <p className="eyebrow">Recording library</p>
-            <h2>Mitchell Republic</h2>
-          </div>
-          <button type="button" className="quiet-button" onClick={() => refreshLibrary().catch((caught) => setError(asMessage(caught)))}>Refresh</button>
-        </div>
-
-        <div className="transcript-upload-card">
-          <label>
-            <span>Recording</span>
-            <input
-              type="file"
-              accept="audio/*,video/mp4,.m4a,.mp3,.wav,.webm,.ogg,.flac"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              disabled={uploadBusy}
-            />
-          </label>
-          <label>
-            <span>Title</span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder={file ? file.name.replace(/\.[^.]+$/, "") : "Interview or meeting title"}
-              disabled={uploadBusy}
-            />
-          </label>
-          <button type="button" onClick={uploadRecording} disabled={!file || uploadBusy}>
-            {uploadBusy ? phase ?? "Working…" : "Upload & transcribe"}
-          </button>
-          {file && (
-            <small>
-              {file.name} · {formatBytes(file.size)}
-              {file.size > DIRECT_TRANSCRIPTION_MAX_BYTES
-                ? " · long recording: keep this tab open while Newsroom prepares and uploads transcription chunks"
-                : ""}
-            </small>
-          )}
-          {uploadBusy && <progress max={1} value={progress} aria-label="Upload and preparation progress" />}
-        </div>
-
-        {notice && <p className="transcript-notice">{notice}</p>}
-        {error && <p className="transcript-error">{error}</p>}
-
-        <div className="recording-list">
-          <div className="recording-list-head">
-            <strong>Recordings</strong>
-            <span className="source-meta">{recordings.length}</span>
-          </div>
-          {recordings.length === 0 ? (
-            <p className="transcript-empty">No recordings yet.</p>
-          ) : recordings.map((recording) => (
-            <button
-              type="button"
-              className={`recording-row${selected?.id === recording.id ? " selected" : ""}`}
-              key={recording.id}
-              onClick={() => openRecording(recording.id)}
-            >
-              <span>
-                <strong>{recording.title}</strong>
-                <small>{new Date(recording.createdAt).toLocaleString()}</small>
-              </span>
-              <span className={`recording-state state-${recording.processingStatus ?? "source"}`}>
-                {processingLabel(recording.processingStatus, Boolean(recording.currentRevisionId))}
-              </span>
-            </button>
-          ))}
-        </div>
-      </section>
-
-      <section className="transcript-live-panel transcript-detail-panel">
+    <div className="transcript-workspace">
+      <section className="transcript-live-panel transcript-detail-panel transcript-active-panel">
         {!selected ? (
           <div className="transcript-detail-empty">
-            <h2>Select a recording</h2>
-            <p>Audio, processing status and transcript stay linked here.</p>
+            <p className="eyebrow">Current recording</p>
+            <h2>No recording selected</h2>
+            <p>Choose a recording below or upload a new one.</p>
           </div>
         ) : (
           <>
-            <p className="eyebrow">Recording</p>
-            <h2>{selected.title}</h2>
-            <p className="source-meta">Original source · {formatBytes(selected.sourceAsset.byteSize)} · SHA-256 {selected.sourceAsset.contentHash.slice(0, 12)}…</p>
+            <div className="active-recording-heading">
+              <div>
+                <p className="eyebrow">Current recording</p>
+                <h2>{selected.title}</h2>
+              </div>
+              <span className={`active-recording-status state-${selectedStatus ?? "source"}${transcriptReady ? " ready" : ""}`}>
+                {processingLabel(selectedStatus, transcriptReady)}
+              </span>
+            </div>
+            <p className="source-meta">Original recording · {formatBytes(selected.sourceAsset.byteSize)} · SHA-256 {selected.sourceAsset.contentHash.slice(0, 12)}…</p>
             {playbackUrl && <audio ref={audioRef} controls preload="metadata" src={playbackUrl} className="transcript-audio" />}
 
-            {selected.processingJob && selected.processingJob.status !== "ready" && (
-              <div className="processing-card">
-                <strong>{processingLabel(selected.processingJob.status, Boolean(selected.transcript?.currentRevisionId))}</strong>
-                {selectedProgress?.totalChunks ? (
-                  <p>{selectedProgress.readyChunks} of {selectedProgress.totalChunks} chunks complete.</p>
-                ) : null}
-                {selected.processingJob.errorMessage && <p>{selected.processingJob.errorMessage}</p>}
-                <button type="button" onClick={() => continueTranscription(selected.processingJob!.id, selected.id)}>Continue transcription</button>
+            {!transcriptReady && isActiveProcessing(selectedStatus) && (
+              <div className="processing-card processing-active">
+                <div className="processing-title"><span className="processing-pulse" aria-hidden="true" /><strong>{processingLabel(selectedStatus, false)}…</strong></div>
+                {selectedProgress?.totalChunks ? <p>{selectedProgress.readyChunks} of {selectedProgress.totalChunks} chunks complete.</p> : null}
+                <p>You can leave this page. Newsroom will keep transcribing in the background and this view will update automatically.</p>
+              </div>
+            )}
+
+            {!transcriptReady && selectedStatus === "failed_retryable" && selected.processingJob && (
+              <div className="processing-card processing-error-state">
+                <strong>Transcription interrupted</strong>
+                <p>{selected.processingJob.errorMessage || "The recording is preserved. Retry will resume the existing transcription job."}</p>
+                <button type="button" onClick={() => retryTranscription(selected.processingJob!.id, selected.id)}>Retry transcription</button>
+              </div>
+            )}
+
+            {!transcriptReady && selectedStatus === "failed_terminal" && selected.processingJob && (
+              <div className="processing-card processing-error-state">
+                <strong>Transcription needs attention</strong>
+                <p>{selected.processingJob.errorMessage || "The original recording is preserved, but this job cannot continue automatically."}</p>
               </div>
             )}
 
@@ -614,8 +591,8 @@ export default function TranscriptWorkspaceClient() {
                   <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search this transcript" />
                   <span>{visibleSegments.length} segments</span>
                 </div>
-                <div className="transcript-panel-heading">
-                  <span className="source-meta">{selected.transcript.provider ?? "Machine transcript"}</span>
+                <div className="transcript-panel-heading transcript-tools-heading">
+                  <span className="source-meta">Machine transcript · {selected.transcript.provider ?? "provider"}</span>
                   <div className="transcript-copy-actions">
                     <button type="button" className="quiet-button" onClick={() => void copyTranscript("clean")}>Copy clean</button>
                     <button type="button" className="quiet-button" onClick={() => void copyTranscript("timestamped")}>Copy timestamps</button>
@@ -630,14 +607,91 @@ export default function TranscriptWorkspaceClient() {
                   ))}
                 </div>
               </>
-            ) : (
+            ) : !isActiveProcessing(selectedStatus) && selectedStatus !== "failed_retryable" && selectedStatus !== "failed_terminal" ? (
               <div className="transcript-detail-empty compact">
                 <strong>No transcript yet.</strong>
-                <p>The original recording remains preserved while transcription is pending or interrupted.</p>
+                <p>The original recording is preserved.</p>
               </div>
-            )}
+            ) : null}
           </>
         )}
+      </section>
+
+      {notice && <p className="transcript-notice transcript-global-notice">{notice}</p>}
+      {error && <p className="transcript-error transcript-global-notice">{error}</p>}
+
+      <section className="transcript-live-panel transcript-library-panel">
+        <div className="transcript-panel-heading">
+          <div>
+            <p className="eyebrow">Recordings</p>
+            <h2>Mitchell Republic library</h2>
+          </div>
+          <button type="button" className="quiet-button" onClick={() => refreshLibrary().catch((caught) => setError(asMessage(caught)))}>Refresh</button>
+        </div>
+
+        <div className="transcript-library-grid">
+          <div className="transcript-upload-card">
+            <div className="upload-card-heading">
+              <strong>Add a recording</strong>
+              <span>Upload a new interview or meeting</span>
+            </div>
+            <label>
+              <span>Recording</span>
+              <input
+                type="file"
+                accept="audio/*,video/mp4,.m4a,.mp3,.wav,.webm,.ogg,.flac"
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                disabled={uploadBusy}
+              />
+            </label>
+            <label>
+              <span>Title</span>
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={file ? file.name.replace(/\.[^.]+$/, "") : "Interview or meeting title"}
+                disabled={uploadBusy}
+              />
+            </label>
+            <button type="button" onClick={uploadRecording} disabled={!file || uploadBusy}>
+              {uploadBusy ? phase ?? "Working…" : "Upload & transcribe"}
+            </button>
+            {file && (
+              <small>
+                {file.name} · {formatBytes(file.size)}
+                {file.size > DIRECT_TRANSCRIPTION_MAX_BYTES
+                  ? " · keep this tab open while Newsroom prepares and uploads transcription chunks"
+                  : ""}
+              </small>
+            )}
+            {uploadBusy && <progress max={1} value={progress} aria-label="Upload and preparation progress" />}
+          </div>
+
+          <div className="recording-list recording-library-list">
+            <div className="recording-list-head">
+              <strong>Recording library</strong>
+              <span className="source-meta">{recordings.length}</span>
+            </div>
+            {recordings.length === 0 ? (
+              <p className="transcript-empty">No recordings yet.</p>
+            ) : recordings.map((recording) => (
+              <button
+                type="button"
+                className={`recording-row${selected?.id === recording.id ? " selected" : ""}`}
+                key={recording.id}
+                onClick={() => openRecording(recording.id)}
+              >
+                <span>
+                  <strong>{recording.title}</strong>
+                  <small>{new Date(recording.createdAt).toLocaleString()}</small>
+                </span>
+                <span className={`recording-state state-${recording.processingStatus ?? "source"}`}>
+                  {processingLabel(recording.processingStatus, Boolean(recording.currentRevisionId))}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       </section>
     </div>
   );
