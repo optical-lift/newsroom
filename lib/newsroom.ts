@@ -13,15 +13,15 @@ export const forumWorkspace = {
   organization: "Forum Communications",
   publication: "Mitchell Republic",
   workspaceSlug: "forum",
-  mode: "public-source-pilot" as const,
+  mode: "mixed-source-pilot" as const,
   desks: [
     {
       slug: "transcripts",
       label: "Transcripts",
-      description: "Recordings, searchable transcripts, speaker correction and source playback.",
-      status: "architecture-ready",
-      statusLabel: "Existing core ready",
-      nextStep: "Connect Newsroom to the existing transcript_core workspace, membership, private storage and evidence tables; no new Transcript Core schema is required."
+      description: "Private recordings, searchable transcripts, source playback and revisioned evidence.",
+      status: "connected",
+      statusLabel: "Long-recording pilot wired",
+      nextStep: "Deploy the existing-schema migration and worker, then prove a real Marshall meeting recording end-to-end before adding speaker correction."
     },
     {
       slug: "municipal",
@@ -36,8 +36,8 @@ export const forumWorkspace = {
       label: "Sports",
       description: "Schedules, results, statistics, verification state and reporting signals.",
       status: "planned",
-      statusLabel: "Source adapter pending",
-      nextStep: "Certify one authoritative sports source end-to-end before broadening coverage."
+      statusLabel: "Parked for later",
+      nextStep: "After Markets and Transcript Core are usable, certify the SDHSAA source router with Bound and Athletic.net."
     },
     {
       slug: "markets",

@@ -2,37 +2,43 @@
 
 ## Purpose
 
-Optical Lift Newsroom is a private human workspace that exposes reporting intelligence produced by source-specific systems.
+Optical Lift Newsroom is the human workspace that exposes reporting intelligence and evidence produced by source-specific systems.
 
 The first client workspace is Forum Communications / Mitchell Republic at `/forum`.
 
 ## V1 navigation
 
 - Today — current state of the workspace and connected desks.
-- Transcripts — future human surface over Transcript Core.
-- Municipal — future human surface over CivicClerk Bridge and municipal reporting services.
+- Transcripts — authenticated human surface over Transcript Core.
+- Municipal — public-source human surface over CivicClerk Bridge and municipal reporting services.
 - Sports — future human surface over sports-source adapters.
-- Markets — future shared recurring markets update and archive.
+- Markets — Marshall's exact Mitchell market block, with live collection/edition automation still to be connected.
 
 ## Ownership boundary
 
 ```text
 source/evidence system
-        ↓
-stable read contract
-        ↓
-Optical Lift Newsroom
-        ↓
-human reporter/editor
+  → narrow domain contract
+  → Newsroom human surface
+  → reporter/editor
 ```
 
-Newsroom owns presentation, navigation, workspace access, and shared human workflow state. Source/evidence services remain authoritative for the records they produce.
+Newsroom does not silently absorb source authority.
 
-## V1 non-goals
+- Transcript Core owns original audio custody, transcripts, revisions, timestamped segments and speaker structure.
+- CivicClerk Bridge owns CivicClerk retrieval and source custody.
+- Sports adapters own sports-source retrieval and verification state.
+- Market adapters own market-source retrieval used by recurring editions.
+- Atlas is optional and is not required for any Newsroom desk.
 
-- No dependency on Atlas.
-- No automatic publishing.
-- No CMS replacement.
-- No autonomous editorial assignments.
-- No chatbot-first UX.
-- No private customer data in the public repository.
+## Access boundary
+
+Public and private desks may coexist in the same Newsroom shell.
+
+- Public-source desks may render already-public evidence without a workspace login.
+- Private desks must authenticate and authorize at the owning domain before returning evidence.
+- Newsroom does not receive or expose provider/service-role secrets in browser code.
+
+## Human-first rule
+
+Newsroom is not a chatbot. A reporter should open a desk and see the source state, evidence, missing pieces and next useful reporting information without having to prompt an AI system.

@@ -6,17 +6,27 @@ Transcript Core is the recording/transcript evidence domain used by `optical-lif
 
 Newsroom owns the human product shell, navigation and newsroom-specific presentation. Transcript Core owns realities intrinsic to recorded audio and transcript evidence.
 
-The existing `transcript_core` schema in the shared `noel-core` Supabase project is the production persistence boundary. Newsroom does **not** create a second Transcript Core schema, second recording table set, or duplicate private-audio bucket.
+The existing `transcript_core` schema in the shared `noel-core` Supabase project is the production persistence boundary. Newsroom does **not** create a second Transcript Core schema, second recording table set, duplicate workspace model, or duplicate private-audio bucket.
 
-The original `optical-lift/transcript-core` repository remains the architecture/specification source from which the domain rules were carried forward. Production implementation now lives with the Newsroom application while reusing the already-established database/storage contract.
+The original `optical-lift/transcript-core` repository remains the architecture/specification source. Production application code now lives with Newsroom while reusing the established database/storage/RPC contract.
 
 ## Dependency boundary
 
 ```text
-Newsroom page / route
-  → server-side transcript application service
-  → transcript-core domain/repository contract
+/forum/transcripts
+  → authenticated Newsroom client
+  → Transcript Core public RPCs + Storage RLS
   → existing transcript_core schema + private storage
+```
+
+Provider processing remains server-side:
+
+```text
+processing job
+  → newsroom-transcript-worker
+  → service-only Transcript Core worker RPCs
+  → transcription provider
+  → immutable revision + stable segments
 ```
 
 Transcript Core does not depend on Atlas. Atlas may later consume stable transcript evidence references.
@@ -40,17 +50,15 @@ Original reporter audio uses the existing private `transcript-core-observed-orig
 
 ## Authorization
 
-The existing Transcript Core tables have RLS enabled and currently expose no direct authenticated-client policies. That is a safe default for Newsroom.
+The audit found that Transcript Core already has its authorization membrane:
 
-V1 access flow:
+- `transcript_core_is_workspace_member` and `transcript_core_can_workspace_edit` are security-definer RPCs scoped to `auth.uid()`;
+- application read/write RPCs are granted to authenticated users only where appropriate;
+- worker mutation RPCs are service-role only;
+- private Storage policies allow workspace-member reads and editor/owner source uploads;
+- Storage object paths are validated by workspace UUID prefix.
 
-1. reporter authenticates;
-2. Newsroom server resolves the authenticated user;
-3. server verifies membership in `transcript_core.workspace_memberships`;
-4. server performs bounded Transcript Core operations;
-5. media is exposed only through short-lived signed/scoped URLs.
-
-No service-role credential may be committed to this public repository or sent to the browser.
+The browser therefore receives only the Supabase publishable key and the configured Forum Transcript Core workspace ID. Service-role and provider credentials remain server-only.
 
 ## Ownership
 
@@ -58,7 +66,7 @@ No service-role credential may be committed to this public repository or sent to
 
 - the `/forum/transcripts` human interface;
 - newsroom navigation and presentation;
-- mapping the Forum product surface to the authorized Transcript Core workspace;
+- mapping the Forum product surface to the configured Transcript Core workspace;
 - downstream journalism/reporting interpretation.
 
 ### Transcript Core owns
@@ -95,9 +103,15 @@ The original audio recording is primary source custody.
 
 Transcript text, diarization, summaries, extraction and later model output are derived. Processing may create derivatives but must never replace or silently mutate original source custody.
 
+## Upload rule
+
+The browser computes SHA-256 incrementally and uses Supabase TUS resumable upload. The original object path begins with the authorized Transcript Core workspace UUID. Only after the upload succeeds does Newsroom call `transcript_core_register_source_ingest`, which creates the observed Asset, Recording and processing job.
+
 ## Long-recording rule
 
-Multi-hour interviews and public meetings are normal input. Provider upload/file-size limits are adapter constraints, not product limits. Users should experience one Recording and one continuous transcript.
+Multi-hour interviews and public meetings remain normal product input. Provider upload/file-size limits are adapter constraints, not product limits.
+
+The first no-cost Groq adapter intentionally stops at the free-tier file limit rather than silently using paid capacity. The original recording is still preserved. A later normalize/chunk/reassemble worker must make large recordings feel like one Recording and one continuous transcript.
 
 ## Revision rule
 
@@ -125,14 +139,15 @@ Internal/external evidence links use stable opaque identifiers and time bounds:
 
 For audit/quote use, a reference may pin an exact revision instead of following the latest corrected text.
 
-## Next implementation spine
+## Current implementation spine
 
-1. implement the server-side Supabase adapter against the existing schema;
-2. map `/forum/transcripts` to an authorized Transcript Core workspace;
-3. prove signed upload into `transcript-core-observed-originals`;
-4. create `assets` + `recordings` custody rows only after upload integrity is known;
-5. enable the first private recording library view;
-6. connect the existing processing lifecycle and long-recording transcription path;
-7. add synchronized playback, correction and search.
+1. authenticate an existing Optical Lift account;
+2. enforce Forum Transcript Core workspace membership;
+3. hash and resumably upload the original source;
+4. register source custody through the existing ingest RPC;
+5. invoke the authenticated transcript worker;
+6. persist provider output as an immutable machine revision with stable timestamped segments;
+7. read the current revision through an authorization-aware detail RPC;
+8. play the original audio through short-lived signed access and jump from transcript timestamps back to source audio.
 
-The UI must not claim source custody until a real original asset exists in private storage and its database record is durable.
+Next: prove the first real reporter recording end-to-end, then add no-cost long-recording chunking and speaker correction.
