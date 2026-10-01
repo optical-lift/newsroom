@@ -2,45 +2,79 @@
 
 ## Product boundary
 
-Transcript Core is the recording/transcript evidence domain inside `optical-lift/newsroom`.
+Transcript Core is the recording/transcript evidence domain used by `optical-lift/newsroom`.
 
-Newsroom owns the human product shell, authentication, workspace membership, permissions, navigation and deployment. Transcript Core owns only realities intrinsic to recorded audio and transcript evidence.
+Newsroom owns the human product shell, navigation and newsroom-specific presentation. Transcript Core owns realities intrinsic to recorded audio and transcript evidence.
 
-This supersedes the earlier assumption that Transcript Core needed to become a separately deployed product/repository. The original `optical-lift/transcript-core` repository remains the architecture/specification source from which these rules were carried forward.
+The existing `transcript_core` schema in the shared `noel-core` Supabase project is the production persistence boundary. Newsroom does **not** create a second Transcript Core schema, second recording table set, or duplicate private-audio bucket.
+
+The original `optical-lift/transcript-core` repository remains the architecture/specification source from which the domain rules were carried forward. Production implementation now lives with the Newsroom application while reusing the already-established database/storage contract.
 
 ## Dependency boundary
 
 ```text
 Newsroom page / route
-  → transcript application service
-  → transcript-core domain contract
-  → storage / transcription / diarization adapters
+  → server-side transcript application service
+  → transcript-core domain/repository contract
+  → existing transcript_core schema + private storage
 ```
 
-Transcript Core does not depend on Atlas. Atlas may later consume Newsroom/Transcript Core evidence through a stable external evidence contract.
+Transcript Core does not depend on Atlas. Atlas may later consume stable transcript evidence references.
+
+## Existing production persistence
+
+Newsroom reuses these existing Transcript Core primitives:
+
+- `transcript_core.workspaces`
+- `transcript_core.workspace_memberships`
+- `transcript_core.assets`
+- `transcript_core.recordings`
+- `transcript_core.processing_jobs`
+- `transcript_core.transcripts`
+- `transcript_core.transcript_revisions`
+- `transcript_core.transcript_segments`
+- `transcript_core.transcript_segment_versions`
+- speaker-analysis / speaker-assignment tables
+
+Original reporter audio uses the existing private `transcript-core-observed-originals` bucket. Processing derivatives use the existing `transcript-core-observed-derivatives` bucket.
+
+## Authorization
+
+The existing Transcript Core tables have RLS enabled and currently expose no direct authenticated-client policies. That is a safe default for Newsroom.
+
+V1 access flow:
+
+1. reporter authenticates;
+2. Newsroom server resolves the authenticated user;
+3. server verifies membership in `transcript_core.workspace_memberships`;
+4. server performs bounded Transcript Core operations;
+5. media is exposed only through short-lived signed/scoped URLs.
+
+No service-role credential may be committed to this public repository or sent to the browser.
 
 ## Ownership
 
 ### Newsroom owns
 
-- workspace identity;
-- membership and authorization;
-- human navigation and presentation;
-- tenant-specific configuration;
-- product deployment.
+- the `/forum/transcripts` human interface;
+- newsroom navigation and presentation;
+- mapping the Forum product surface to the authorized Transcript Core workspace;
+- downstream journalism/reporting interpretation.
 
 ### Transcript Core owns
 
+- Workspace and transcript access membership;
 - Recording;
-- original Audio Asset and processing derivatives;
+- original observed Asset and processing derivatives;
 - Processing Job;
 - Transcript;
 - Transcript Revision;
-- Transcript Segment;
+- stable Transcript Segment;
+- revision-specific Segment Version;
 - speaker clusters/assignments;
 - transcript corrections;
 - transcript/audio search;
-- annotations/bookmarks;
+- annotations/bookmarks when implemented;
 - evidence references;
 - scoped playback links;
 - provider provenance.
@@ -67,18 +101,22 @@ Multi-hour interviews and public meetings are normal input. Provider upload/file
 
 ## Revision rule
 
-A transcript is not one mutable text blob. Machine output and later human correction must remain revisioned. Stable segment identity should survive ordinary text correction whenever the underlying time-bounded speech is unchanged.
+A transcript is not one mutable text blob. Machine output and later human correction remain revisioned. Stable `transcript_segments` preserve the underlying speech/time anchor; `transcript_segment_versions` preserve the text and exact time bounds for a particular revision.
+
+## Reporting relationship
+
+`reporting` is a separate downstream schema. It may register a Transcript Core recording/transcript/segment as source evidence, but it must not copy the original recording or collapse revision history into a mutable reporting blob.
 
 ## Evidence reference
 
-External and internal links to transcript evidence use stable opaque identifiers and time bounds. The V1 semantic shape is:
+Internal/external evidence links use stable opaque identifiers and time bounds:
 
 ```ts
 {
   schema: "transcript-evidence.v1",
-  recordingId: "rec_...",
-  transcriptId: "tr_...",
-  segmentId: "seg_...",
+  recordingId: "...",
+  transcriptId: "...",
+  segmentId: "...",
   startMs: 184400,
   endMs: 193100,
   revision: { policy: "latest" }
@@ -87,14 +125,14 @@ External and internal links to transcript evidence use stable opaque identifiers
 
 For audit/quote use, a reference may pin an exact revision instead of following the latest corrected text.
 
-## First implementation spine
+## Next implementation spine
 
-1. shared Newsroom workspace + membership
-2. durable Recording and original Audio Asset custody
-3. explicit processing lifecycle
-4. timestamped transcript/revision/segment identity
-5. synchronized playback and search
-6. speaker segmentation and correction
-7. stable integration/read contract
+1. implement the server-side Supabase adapter against the existing schema;
+2. map `/forum/transcripts` to an authorized Transcript Core workspace;
+3. prove signed upload into `transcript-core-observed-originals`;
+4. create `assets` + `recordings` custody rows only after upload integrity is known;
+5. enable the first private recording library view;
+6. connect the existing processing lifecycle and long-recording transcription path;
+7. add synchronized playback, correction and search.
 
-The UI must not claim source custody before private storage and authorization are actually connected.
+The UI must not claim source custody until a real original asset exists in private storage and its database record is durable.
