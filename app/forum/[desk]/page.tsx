@@ -1,17 +1,29 @@
 import { notFound } from "next/navigation";
 import MunicipalDesk from "@/components/municipal-desk";
+import { municipalQuery } from "@/lib/municipal/civicclerk";
 import { getDesk } from "@/lib/newsroom";
 
 export const dynamic = "force-dynamic";
 
-export default async function DeskPage({ params }: { params: Promise<{ desk: string }> }) {
+type DeskPageProps = {
+  params: Promise<{ desk: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function first(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function DeskPage({ params, searchParams }: DeskPageProps) {
   const { desk: deskSlug } = await params;
   const desk = getDesk(deskSlug);
 
   if (!desk) notFound();
 
   if (desk.slug === "municipal") {
-    return <MunicipalDesk />;
+    const queryParams = await searchParams;
+    const query = municipalQuery(first(queryParams.body), first(queryParams.date));
+    return <MunicipalDesk query={query} />;
   }
 
   return (
