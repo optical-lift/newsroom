@@ -1,13 +1,13 @@
 import Link from "next/link";
 
 const stages = [
-  ["1", "Source custody", "Create a Recording and preserve the original audio asset in private storage."],
-  ["2", "Processing", "Validate, normalize, chunk and transcribe without making provider limits visible to the reporter."],
-  ["3", "Addressable transcript", "Store stable timestamped segments and immutable transcript revisions."],
-  ["4", "Correction", "Correct words and speakers without erasing prior machine or human states."],
-  ["5", "Playback & search", "Search an archive, open a segment and hear the matching source audio."],
-  ["6", "Speaker structure", "Keep diarization, speaker labels and human identity assignments distinct."],
-  ["7", "Evidence contract", "Expose stable recording/segment/time references without leaking storage internals."]
+  ["1", "Source custody", "Use the existing Transcript Core workspace, assets and private observed-originals storage boundary."],
+  ["2", "Processing", "Reuse the existing processing_jobs lifecycle instead of creating a parallel queue/state model."],
+  ["3", "Addressable transcript", "Read the existing transcript, revision, segment and segment-version identities."],
+  ["4", "Correction", "Preserve later human revisions without erasing prior machine output."],
+  ["5", "Playback & search", "Return scoped media access and stable evidence-linked search results."],
+  ["6", "Speaker structure", "Reuse existing speaker analysis, clusters, candidates and assignments."],
+  ["7", "Reporting bridge", "Let Reporting Core reference Transcript Core evidence without copying source custody."]
 ] as const;
 
 export default function TranscriptsDesk() {
@@ -48,10 +48,10 @@ export default function TranscriptsDesk() {
         <p className="eyebrow">Mitchell Republic · Transcript Core</p>
         <div className="title-row">
           <h1>Transcripts</h1>
-          <span className="status status-architecture-ready">Custody spine defined</span>
+          <span className="status status-connected">Existing core found</span>
         </div>
         <p>
-          Recorded audio becomes durable, searchable, source-linked evidence. The recording remains the source; transcript text is a revisioned derivative.
+          Recorded audio becomes durable, searchable, source-linked evidence. Newsroom is using the existing Transcript Core schema and private storage rather than creating a second transcript system.
         </p>
       </header>
 
@@ -59,7 +59,7 @@ export default function TranscriptsDesk() {
         <div>
           <p className="eyebrow">Recording library</p>
           <h2>Forum workspace</h2>
-          <p>Private recording upload remains disabled until Newsroom authentication and private storage are connected.</p>
+          <p>The persistence layer already exists. Upload remains disabled until the Newsroom server adapter and authenticated workspace mapping are connected.</p>
         </div>
         <button className="disabled-upload" type="button" disabled aria-disabled="true">Upload recording</button>
       </section>
@@ -67,18 +67,18 @@ export default function TranscriptsDesk() {
       <div className="transcript-grid">
         <section className="transcript-library">
           <p className="eyebrow">Library</p>
-          <h2>No private recordings are connected</h2>
+          <h2>No Forum recording workspace is connected yet</h2>
           <div className="library-empty">
-            <strong>This is intentionally empty.</strong>
+            <strong>The storage and transcript schema already exist.</strong>
             <p>
-              The domain model, private-storage contract and workspace isolation rules now exist in code. We will not put Marshall&apos;s interviews or meeting audio here until the dedicated Newsroom data boundary and authorization path are live.
+              The next cut is no longer database design. It is the server-side adapter that verifies a reporter&apos;s Transcript Core workspace membership, reads the existing recording library and issues signed upload/playback access to the existing private buckets.
             </p>
           </div>
         </section>
 
         <section className="transcript-proof">
-          <p className="eyebrow">Build spine</p>
-          <h2>What has to become true</h2>
+          <p className="eyebrow">Implementation spine</p>
+          <h2>Reuse what is already real</h2>
           <div className="proof-list">
             {stages.map(([number, title, description]) => (
               <div className="proof-row" key={number}>
@@ -95,23 +95,23 @@ export default function TranscriptsDesk() {
 
       <section className="transcript-contract">
         <article>
-          <h3>Newsroom owns access</h3>
-          <p>One Forum workspace and membership model will serve Transcripts, Markets, Municipal and Sports. Transcript Core does not create a second account system.</p>
+          <h3>One physical Supabase</h3>
+          <p>Newsroom shares the existing noel-core Supabase project to avoid added cost, while Transcript Core remains isolated in its own schema and private storage buckets.</p>
         </article>
         <article>
           <h3>Transcript Core owns evidence</h3>
-          <p>Recording identity, original audio custody, processing state, transcript revisions, timestamped segments and playback references stay inside the transcript domain.</p>
+          <p>Existing assets, recordings, processing jobs, revisioned transcripts, stable segments and speaker structures remain the authoritative transcript domain.</p>
         </article>
         <article>
-          <h3>Atlas stays optional</h3>
-          <p>Nothing about upload, transcription, correction, search or playback requires Atlas. A later adapter may consume stable evidence references.</p>
+          <h3>Reporting stays downstream</h3>
+          <p>The existing reporting schema can later reference exact Transcript Core evidence. It does not become another copy of the audio or transcript system.</p>
         </article>
       </section>
 
       <section className="evidence-rule">
         <strong>Next implementation</strong>
         <p>
-          Provision the dedicated Newsroom auth/database/storage boundary, apply the shared workspace + Transcript Core migration, then enable the first private recording upload. Only after original-audio custody is proven do we connect long-recording transcription.
+          Build the server-side Supabase adapter against the existing Transcript Core schema, map the Forum surface to an authorized Transcript Core workspace, then prove the first signed upload into <code>transcript-core-observed-originals</code>. No new Transcript Core tables are required.
         </p>
       </section>
 

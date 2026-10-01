@@ -20,8 +20,8 @@ export const forumWorkspace = {
       label: "Transcripts",
       description: "Recordings, searchable transcripts, speaker correction and source playback.",
       status: "architecture-ready",
-      statusLabel: "Custody spine defined",
-      nextStep: "Provision the dedicated Newsroom auth/database/storage boundary, then prove private original-audio custody before transcription is connected."
+      statusLabel: "Existing core ready",
+      nextStep: "Connect Newsroom to the existing transcript_core workspace, membership, private storage and evidence tables; no new Transcript Core schema is required."
     },
     {
       slug: "municipal",
