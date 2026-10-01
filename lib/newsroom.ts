@@ -1,7 +1,7 @@
 export type DeskStatus = "connected" | "planned";
 
 export type Desk = {
-  slug: "markets" | "municipal" | "transcripts" | "sports";
+  slug: "markets" | "legal-notices" | "municipal" | "transcripts" | "sports";
   label: string;
   description: string;
   status: DeskStatus;
@@ -19,6 +19,13 @@ export const forumWorkspace = {
       description: "Mitchell market and grain prices, formatted for copy.",
       status: "connected",
       statusLabel: "Live"
+    },
+    {
+      slug: "legal-notices",
+      label: "Legal Notices",
+      description: "Proof, approval and payment tracking for legal notices.",
+      status: "connected",
+      statusLabel: "Pilot"
     },
     {
       slug: "municipal",
