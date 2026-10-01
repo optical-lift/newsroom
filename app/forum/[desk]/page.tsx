@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import MarketsDesk from "@/components/markets-desk";
 import MunicipalDesk from "@/components/municipal-desk";
+import TranscriptsDesk from "@/components/transcripts-desk";
 import { municipalQuery } from "@/lib/municipal/civicclerk";
 import { getDesk } from "@/lib/newsroom";
 
@@ -29,6 +30,10 @@ export default async function DeskPage({ params, searchParams }: DeskPageProps) 
 
   if (desk.slug === "markets") {
     return <MarketsDesk />;
+  }
+
+  if (desk.slug === "transcripts") {
+    return <TranscriptsDesk />;
   }
 
   return (
