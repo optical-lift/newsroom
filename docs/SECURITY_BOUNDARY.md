@@ -1,26 +1,33 @@
 # Public code / private newsroom boundary
 
-The `optical-lift/newsroom` repository is public. The deployed Forum workspace will become private before any real newsroom data is connected.
+The `optical-lift/newsroom` repository is public. The deployed Newsroom is private.
 
-## Public
+## Access
+
+- `/login` is the only unauthenticated human-facing route.
+- `/` redirects into the protected Forum workspace.
+- `/forum` and every desk require a valid Supabase Auth session.
+- Server-side authorization also requires membership in the Forum / Mitchell Republic workspace.
+- The current pilot reuses the existing Transcript Core workspace membership as the Forum access list rather than creating a second member table.
+
+## Public repository content
 
 - application source code;
 - route structure;
-- source-adapter interfaces;
+- public source adapters;
 - UI components and styles;
 - tests and CI configuration;
-- documentation that contains no customer secrets.
+- Supabase project URL, publishable browser key and opaque Forum workspace UUID.
 
-## Private
+Those Supabase browser values are public client configuration, not privileged credentials.
 
-- authentication/session state;
-- Forum member identities and permissions;
-- recordings and transcripts;
-- unpublished reporting and notes;
-- generated Markets Update editions if they contain licensed/private material;
-- source credentials and provider API keys;
-- database credentials and service-role keys.
+## Never commit
 
-## Hard gate
+- service-role keys;
+- provider secrets or API keys;
+- private recordings or transcripts;
+- unpublished reporting or notes;
+- session tokens;
+- production data dumps or private logs.
 
-The shell may be deployed before authentication because it contains no customer data. No real Forum data may be wired into `/forum` until both authentication and server-side authorization are active and tested.
+Authorization is enforced by Supabase Auth plus the existing workspace-membership RPC and downstream RLS/RPC rules. A public source being displayed inside Newsroom does not make the Newsroom workspace public.
