@@ -7,7 +7,7 @@ export default function ForumTodayPage() {
       <header className="page-header">
         <p className="eyebrow">Thursday, Oct. 1, 2026</p>
         <h1>Today</h1>
-        <p>One place for the reporting systems your newsroom uses. The Municipal desk now has a live public-record source connection; private newsroom sources remain disconnected until access control is in place.</p>
+        <p>One place for the reporting systems your newsroom uses. Municipal reads public records; Transcript Core opens a private Forum recording workspace only after account and workspace authorization.</p>
       </header>
 
       <section className="desk-grid" aria-label="Newsroom desks">
@@ -26,7 +26,7 @@ export default function ForumTodayPage() {
       <section className="principle-card">
         <p className="eyebrow">Governing rule</p>
         <h2>Evidence systems own the source. Newsroom owns the human workspace.</h2>
-        <p>Reporters should be able to move from a record to its underlying evidence without needing retrieval infrastructure, database credentials or Atlas. A public source may be connected before authentication; private newsroom material may not.</p>
+        <p>Reporters should be able to move from a record to its underlying evidence without needing retrieval infrastructure, database credentials or Atlas. Public and private sources may share the Newsroom surface, but private evidence remains behind its domain authorization boundary.</p>
       </section>
     </>
   );

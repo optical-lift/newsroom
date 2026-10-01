@@ -1,6 +1,6 @@
 # Public code / private newsroom boundary
 
-The `optical-lift/newsroom` repository is public. The deployed Forum workspace will become private before any real newsroom data is connected.
+The `optical-lift/newsroom` repository is public. Public code and public-source desk surfaces may be visible without a newsroom login. Private newsroom evidence may not be returned unless the source domain authorizes the current user.
 
 ## Public
 
@@ -9,7 +9,8 @@ The `optical-lift/newsroom` repository is public. The deployed Forum workspace w
 - source-adapter interfaces;
 - UI components and styles;
 - tests and CI configuration;
-- documentation that contains no customer secrets.
+- documentation that contains no customer secrets;
+- public-source municipal material already public at its authoritative source.
 
 ## Private
 
@@ -19,8 +20,14 @@ The `optical-lift/newsroom` repository is public. The deployed Forum workspace w
 - unpublished reporting and notes;
 - generated Markets Update editions if they contain licensed/private material;
 - source credentials and provider API keys;
-- database credentials and service-role keys.
+- service-role credentials.
+
+## Transcript Core rule
+
+Transcript Core already enforces its private boundary through Supabase Auth, `transcript_core.workspace_memberships`, authorization-aware RPCs and Storage RLS. The Newsroom browser receives only a publishable Supabase key; it does not receive a service-role key or provider credential.
+
+A route being publicly reachable does not make the evidence behind it public. `/forum/transcripts` must render an authentication/access state until Transcript Core authorizes that account for the configured Forum workspace.
 
 ## Hard gate
 
-The shell may be deployed before authentication because it contains no customer data. No real Forum data may be wired into `/forum` until both authentication and server-side authorization are active and tested.
+Do not bypass a domain's authorization boundary to make a Newsroom page easier to build. Private evidence remains unavailable on auth failure, workspace-membership failure or source-access failure.

@@ -1,46 +1,59 @@
 import Link from "next/link";
-
-const stages = [
-  ["1", "Source custody", "Use the existing Transcript Core workspace, assets and private observed-originals storage boundary."],
-  ["2", "Processing", "Reuse the existing processing_jobs lifecycle instead of creating a parallel queue/state model."],
-  ["3", "Addressable transcript", "Read the existing transcript, revision, segment and segment-version identities."],
-  ["4", "Correction", "Preserve later human revisions without erasing prior machine output."],
-  ["5", "Playback & search", "Return scoped media access and stable evidence-linked search results."],
-  ["6", "Speaker structure", "Reuse existing speaker analysis, clusters, candidates and assignments."],
-  ["7", "Reporting bridge", "Let Reporting Core reference Transcript Core evidence without copying source custody."]
-] as const;
+import TranscriptWorkspaceClient from "@/components/transcript-workspace-client";
 
 export default function TranscriptsDesk() {
   return (
     <>
       <style>{`
         .transcript-header { margin-bottom: 24px; }
-        .transcript-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-        .transcript-toolbar h2, .transcript-library h2, .transcript-proof h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 500; }
-        .transcript-toolbar h2 { font-size: 25px; }
-        .transcript-toolbar p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-        .disabled-upload { border: 0; border-radius: 8px; padding: 11px 15px; background: #d9ddd9; color: #717a74; font-weight: 800; cursor: not-allowed; }
-        .transcript-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .7fr); gap: 16px; align-items: start; }
-        .transcript-library, .transcript-proof { padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-        .transcript-library h2, .transcript-proof h2 { font-size: 27px; }
-        .library-empty { margin-top: 18px; padding: 30px 24px; border: 1px dashed #c8ccc7; border-radius: 10px; background: #f0efe9; }
-        .library-empty strong { display: block; margin-bottom: 8px; font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 500; }
-        .library-empty p { margin: 0; max-width: 650px; color: var(--muted); font-size: 13px; line-height: 1.55; }
-        .proof-list { display: grid; margin-top: 16px; }
-        .proof-row { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid #ecebe5; }
-        .proof-row:first-child { border-top: 0; }
-        .proof-number { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--soft-accent); color: var(--accent); font-size: 10px; font-weight: 900; }
-        .proof-row strong { display: block; font-size: 12px; }
-        .proof-row span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.45; }
-        .transcript-contract { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-        .transcript-contract article { padding: 20px; border-top: 2px solid var(--ink); }
-        .transcript-contract h3 { margin: 0 0 8px; font-size: 13px; }
-        .transcript-contract p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+        .transcript-live-grid { display: grid; grid-template-columns: minmax(360px, .8fr) minmax(0, 1.2fr); gap: 16px; align-items: start; }
+        .transcript-live-panel { padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+        .transcript-live-panel h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 27px; font-weight: 500; }
+        .transcript-live-panel > p:not(.eyebrow), .transcript-detail-empty p { color: var(--muted); line-height: 1.5; }
+        .transcript-panel-heading, .recording-list-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; }
+        .transcript-auth-form, .transcript-upload-card { display: grid; gap: 10px; margin-top: 18px; }
+        .transcript-auth-form { max-width: 460px; }
+        .transcript-live-panel input, .transcript-live-panel button { font: inherit; }
+        .transcript-live-panel input { width: 100%; box-sizing: border-box; padding: 11px 12px; border: 1px solid var(--line); border-radius: 8px; background: white; }
+        .transcript-live-panel button { border: 0; border-radius: 8px; padding: 10px 13px; background: var(--ink); color: white; font-size: 12px; font-weight: 800; cursor: pointer; }
+        .transcript-live-panel button:disabled { opacity: .5; cursor: not-allowed; }
+        .transcript-live-panel .quiet-button { padding: 7px 9px; background: transparent; color: var(--muted); border: 1px solid var(--line); }
+        .transcript-upload-card { margin-top: 18px; padding: 18px; border-radius: 10px; background: #f0efe9; }
+        .transcript-upload-card label > span { display: block; margin-bottom: 5px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+        .transcript-upload-card small { color: var(--muted); }
+        .transcript-upload-card progress { width: 100%; }
+        .transcript-notice, .transcript-error { margin-top: 14px; padding: 11px 13px; border-radius: 8px; font-size: 12px; line-height: 1.45; }
+        .transcript-notice { background: #edf1ea; color: #405248; }
+        .transcript-error { background: #f7e8e5; color: #7b3028; }
+        .recording-list { margin-top: 22px; }
+        .recording-list-head { margin-bottom: 8px; }
+        .recording-row { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 13px 10px !important; border-radius: 0 !important; border-top: 1px solid #ecebe5 !important; background: transparent !important; color: var(--ink) !important; text-align: left; }
+        .recording-row.selected { background: #f0efe9 !important; }
+        .recording-row strong, .recording-row small { display: block; }
+        .recording-row small { margin-top: 3px; color: var(--muted); font-weight: 500; }
+        .recording-state { font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+        .transcript-empty { color: var(--muted); font-size: 12px; }
+        .source-meta { font-size: 11px; word-break: break-word; }
+        .transcript-audio { width: 100%; margin: 14px 0; }
+        .processing-card { margin: 14px 0; padding: 14px; border: 1px solid var(--line); border-radius: 9px; background: #f0efe9; }
+        .processing-card p { color: var(--muted); font-size: 12px; line-height: 1.45; }
+        .transcript-search-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: center; margin: 14px 0 8px; }
+        .transcript-search-row span { color: var(--muted); font-size: 10px; font-weight: 800; }
+        .transcript-segments { max-height: 640px; overflow: auto; padding-right: 4px; }
+        .transcript-segment { display: grid; grid-template-columns: 64px 1fr; gap: 12px; padding: 12px 0; border-top: 1px solid #ecebe5; }
+        .transcript-segment button { align-self: start; padding: 5px 7px; background: var(--soft-accent); color: var(--accent); }
+        .transcript-segment p { margin: 0; font-size: 13px; line-height: 1.55; }
+        .transcript-detail-empty { padding: 26px 0; }
+        .transcript-detail-empty.compact { padding: 18px 0 0; }
+        .transcript-config-missing { max-width: 760px; }
+        .transcript-principles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+        .transcript-principles article { padding: 18px; border-top: 2px solid var(--ink); }
+        .transcript-principles h3 { margin: 0 0 7px; font-size: 13px; }
+        .transcript-principles p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
         .transcript-backlink { margin-top: 24px; }
         .transcript-backlink a { color: var(--accent); font-weight: 800; }
-        @media (max-width: 900px) {
-          .transcript-grid, .transcript-contract { grid-template-columns: 1fr; }
-          .transcript-toolbar { align-items: flex-start; flex-direction: column; }
+        @media (max-width: 980px) {
+          .transcript-live-grid, .transcript-principles { grid-template-columns: 1fr; }
         }
       `}</style>
 
@@ -48,71 +61,28 @@ export default function TranscriptsDesk() {
         <p className="eyebrow">Mitchell Republic · Transcript Core</p>
         <div className="title-row">
           <h1>Transcripts</h1>
-          <span className="status status-connected">Existing core found</span>
+          <span className="status status-connected">Otter replacement pilot</span>
         </div>
         <p>
-          Recorded audio becomes durable, searchable, source-linked evidence. Newsroom is using the existing Transcript Core schema and private storage rather than creating a second transcript system.
+          Upload recorded interviews or multi-hour meetings, preserve the original audio as evidence, and work from one timestamped transcript linked back to that source.
         </p>
       </header>
 
-      <section className="transcript-toolbar">
-        <div>
-          <p className="eyebrow">Recording library</p>
-          <h2>Forum workspace</h2>
-          <p>The persistence layer already exists. Upload remains disabled until the Newsroom server adapter and authenticated workspace mapping are connected.</p>
-        </div>
-        <button className="disabled-upload" type="button" disabled aria-disabled="true">Upload recording</button>
-      </section>
+      <TranscriptWorkspaceClient />
 
-      <div className="transcript-grid">
-        <section className="transcript-library">
-          <p className="eyebrow">Library</p>
-          <h2>No Forum recording workspace is connected yet</h2>
-          <div className="library-empty">
-            <strong>The storage and transcript schema already exist.</strong>
-            <p>
-              The next cut is no longer database design. It is the server-side adapter that verifies a reporter&apos;s Transcript Core workspace membership, reads the existing recording library and issues signed upload/playback access to the existing private buckets.
-            </p>
-          </div>
-        </section>
-
-        <section className="transcript-proof">
-          <p className="eyebrow">Implementation spine</p>
-          <h2>Reuse what is already real</h2>
-          <div className="proof-list">
-            {stages.map(([number, title, description]) => (
-              <div className="proof-row" key={number}>
-                <div className="proof-number">{number}</div>
-                <div>
-                  <strong>{title}</strong>
-                  <span>{description}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <section className="transcript-contract">
+      <section className="transcript-principles">
         <article>
-          <h3>One physical Supabase</h3>
-          <p>Newsroom shares the existing noel-core Supabase project to avoid added cost, while Transcript Core remains isolated in its own schema and private storage buckets.</p>
+          <h3>The recording is the source</h3>
+          <p>Transcript text is derived and revisioned. Provider processing never replaces the original audio or its SHA-256 evidence hash.</p>
         </article>
         <article>
-          <h3>Transcript Core owns evidence</h3>
-          <p>Existing assets, recordings, processing jobs, revisioned transcripts, stable segments and speaker structures remain the authoritative transcript domain.</p>
+          <h3>Long files stay one recording</h3>
+          <p>Large audio is split locally into provider-sized FLAC derivatives, then the returned timestamps are mapped back onto one continuous source timeline.</p>
         </article>
         <article>
-          <h3>Reporting stays downstream</h3>
-          <p>The existing reporting schema can later reference exact Transcript Core evidence. It does not become another copy of the audio or transcript system.</p>
+          <h3>Private by default</h3>
+          <p>The existing Transcript Core workspace membership and private Storage policies decide who may read, add or process recordings.</p>
         </article>
-      </section>
-
-      <section className="evidence-rule">
-        <strong>Next implementation</strong>
-        <p>
-          Build the server-side Supabase adapter against the existing Transcript Core schema, map the Forum surface to an authorized Transcript Core workspace, then prove the first signed upload into <code>transcript-core-observed-originals</code>. No new Transcript Core tables are required.
-        </p>
       </section>
 
       <p className="quiet-note transcript-backlink"><Link href="/forum">← Back to Today</Link></p>

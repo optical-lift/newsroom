@@ -30,24 +30,36 @@ The dependency direction is:
 
 ```text
 /forum/transcripts
-→ Newsroom server-side application service
-→ Transcript Core repository adapter
-→ existing transcript_core schema + private storage
+→ authenticated Newsroom client
+→ existing authorization-aware Transcript Core RPCs / Storage RLS
+→ transcript_core schema + private storage
+```
+
+Provider processing stays server-side:
+
+```text
+processing job
+→ authenticated Newsroom worker invocation
+→ server-only Transcript Core worker RPCs
+→ Groq adapter
+→ immutable Transcript Core revision/segments
 ```
 
 ## Authorization
 
-RLS is enabled on the existing Transcript Core tables, but no direct authenticated-client policies are currently installed. Newsroom therefore must not expose direct browser access to the schema or buckets.
+The schema audit found that the existing core already has the authorization membrane Newsroom needs:
 
-V1 authorization rule:
+- `transcript_core_is_workspace_member` and `transcript_core_can_workspace_edit` validate the authenticated Supabase user;
+- read/write application RPCs are exposed only where intended;
+- processing-worker RPCs are service-role only;
+- private Storage policies allow reads for workspace members and source uploads for workspace editors/owners;
+- storage object paths are checked by workspace UUID prefix.
 
-1. user authenticates with Supabase Auth;
-2. Newsroom server resolves the authenticated user;
-3. Newsroom server verifies membership in `transcript_core.workspace_memberships`;
-4. server-side code performs bounded Transcript Core reads/writes;
-5. media access is returned only through short-lived signed/scoped URLs.
+Therefore Newsroom may use the Supabase publishable key in the browser for authenticated RPC and Storage operations. It does not receive a service-role key. Provider credentials and processing-worker functions remain server-side.
 
-A service-role credential, if used, remains server-only and is never committed to this public repository or sent to the browser.
+## Forum workspace
+
+The Mitchell Republic pilot maps to one existing Transcript Core workspace configured outside the public repository. The workspace ID belongs in deployment configuration, not source code. Membership remains in `transcript_core.workspace_memberships` rather than a duplicate Newsroom membership table.
 
 ## Reporting relationship
 
