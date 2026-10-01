@@ -2,7 +2,13 @@
 
 import { useState } from "react";
 
-export default function MarketCopyButton({ text }: { text: string }) {
+export default function MarketCopyButton({
+  text,
+  label = "Copy"
+}: {
+  text: string;
+  label?: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   async function copy() {
@@ -17,7 +23,7 @@ export default function MarketCopyButton({ text }: { text: string }) {
 
   return (
     <button className="market-copy-button" type="button" onClick={copy}>
-      {copied ? "Copied" : "Copy"}
+      {copied ? "Copied" : label}
     </button>
   );
 }

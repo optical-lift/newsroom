@@ -1,5 +1,6 @@
 import Link from "next/link";
 import MarketCopyButton from "@/components/market-copy-button";
+import { recordMarketsEdition } from "@/lib/markets/editions";
 import { collectMitchellMarkets } from "@/lib/markets/live";
 
 function collectedLabel(value: string) {
@@ -15,6 +16,7 @@ function collectedLabel(value: string) {
 export default async function MarketsDesk() {
   const snapshot = await collectMitchellMarkets();
   const checkedAt = collectedLabel(snapshot.collectedAt);
+  const blockWithChanges = await recordMarketsEdition(snapshot);
 
   return (
     <>
@@ -23,7 +25,7 @@ export default async function MarketsDesk() {
         .markets-header > p:last-child { margin-top: 8px; font-size: 13px; }
         .markets-card { max-width: 760px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
         .market-block { margin: 0; padding: 22px; border-radius: 10px; background: var(--ink); color: #f7f4ec; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 15px; line-height: 1.75; white-space: pre-wrap; }
-        .market-actions { display: flex; gap: 10px; margin-top: 14px; }
+        .market-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
         .market-copy-button, .market-refresh { display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 7px; padding: 8px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
         .market-copy-button { border: 0; background: var(--accent); color: white; }
         .market-refresh { border: 1px solid var(--line); background: transparent; color: var(--accent); }
@@ -54,7 +56,8 @@ export default async function MarketsDesk() {
       <section className="markets-card">
         <pre className="market-block">{snapshot.block}</pre>
         <div className="market-actions">
-          {snapshot.ready ? <MarketCopyButton text={snapshot.block} /> : null}
+          {snapshot.ready ? <MarketCopyButton text={snapshot.block} label="Copy" /> : null}
+          {blockWithChanges ? <MarketCopyButton text={blockWithChanges} label="Copy with changes" /> : null}
           <Link className="market-refresh" href="/forum/markets">Refresh</Link>
         </div>
       </section>
