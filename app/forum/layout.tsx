@@ -22,8 +22,8 @@ export default function ForumLayout({ children }: Readonly<{ children: React.Rea
           ))}
         </nav>
         <div className="shell-notice">
-          <strong>Shell mode</strong>
-          <span>No private Forum data is connected.</span>
+          <strong>Public-source pilot</strong>
+          <span>Municipal public records are connected. No private Forum data is connected.</span>
         </div>
       </aside>
       <main className="workspace-main">{children}</main>

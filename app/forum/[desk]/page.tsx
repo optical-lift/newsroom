@@ -1,11 +1,18 @@
 import { notFound } from "next/navigation";
+import MunicipalDesk from "@/components/municipal-desk";
 import { getDesk } from "@/lib/newsroom";
+
+export const dynamic = "force-dynamic";
 
 export default async function DeskPage({ params }: { params: Promise<{ desk: string }> }) {
   const { desk: deskSlug } = await params;
   const desk = getDesk(deskSlug);
 
   if (!desk) notFound();
+
+  if (desk.slug === "municipal") {
+    return <MunicipalDesk />;
+  }
 
   return (
     <>
@@ -34,8 +41,8 @@ export default async function DeskPage({ params }: { params: Promise<{ desk: str
           <p>The source-specific service retains evidence custody, provenance and its own domain contract.</p>
         </article>
         <article>
-          <h3>Before real data</h3>
-          <p>Authentication and server-side authorization must be active and tested first.</p>
+          <h3>Before private data</h3>
+          <p>Authentication and server-side authorization must be active and tested before private newsroom sources are connected.</p>
         </article>
       </section>
     </>
