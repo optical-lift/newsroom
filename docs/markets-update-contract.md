@@ -1,70 +1,66 @@
-# Markets Update contract
+# Mitchell Markets Update
 
-## Purpose
+## Output
 
-Markets is a Forum-owned recurring newsroom process, not a reporter-owned automation. It produces one canonical Mitchell edition that can be read by the whole workspace.
+The Mitchell Markets desk produces one exact eight-value block for Marshall:
 
-## Human-facing surface
+```text
+MARKETS
+Dow Jones: <value> (<point change>)
+S&P 500: <value> (<point change>)
+Nasdaq: <value> (<point change>)
 
-`/forum/markets`
+Local Grain:
+Corn: <cash bid>
+Beans: <cash bid>
+Wheat: <cash bid>
 
-The surface has three views:
+Poet (Corn): <cash bid>
+High Plains Processing (Beans): <cash bid>
+```
 
-- Today
-- Archive
-- Sources
-
-## Exact Mitchell output
-
-The update is an exact formatted block, not prose.
-
-Required values:
+## Required observations
 
 1. Dow Jones
 2. S&P 500
 3. Nasdaq
-4. Local Grain — corn
-5. Local Grain — beans
-6. Local Grain — wheat
-7. POET Mitchell — corn
-8. High Plains Processing — beans
+4. CHS Farmers Alliance Mitchell corn
+5. CHS Farmers Alliance Mitchell soybeans
+6. CHS Farmers Alliance Mitchell HRW wheat
+7. POET Mitchell corn
+8. High Plains Processing Mitchell soybeans
 
-Market-index change values retain signed parenthetical formatting, e.g. `(-0.06)`.
+The block is READY only when all eight observations are retrieved in the current collection run. Newsroom never silently carries forward an older value.
 
-## Authoritative source families
+## Sources
 
-- Dow Jones, S&P 500, Nasdaq → MarketWatch
-- Local Grain corn/beans/wheat → CHS Farmers Alliance Mitchell cash bids
-- POET Mitchell corn → POET Mitchell
-- High Plains Processing beans → HPP cash bids
+- Market indexes: MarketWatch / Dow Jones quote service.
+- Local corn, soybeans and wheat: CHS Farmers Alliance Mitchell cash bids.
+- POET corn: POET Mitchell / Gradable local bids.
+- High Plains Processing soybeans: High Plains Processing Mitchell cash bids.
 
-Do not silently substitute another source. A fallback source, if ever added, must be explicit in the edition state.
+The three local pages may be read through a public text-reader transport when their front-end WAF or JavaScript layer prevents a normal server fetch. The original CHS, POET and HPP pages remain the named sources and source links shown to the reporter.
 
-## Readiness rule
+Only the required cash-bid observation is extracted from POET/HPP pages; unrelated futures data is not persisted or republished.
 
-Every run validates all eight fields and their freshness.
+## UI
 
-- `8/8 READY` means every required value is present and current enough for the edition.
-- Any missing or stale value keeps the edition from READY and must be named explicitly.
+The reporter sees:
 
-Before scheduled publication/delivery is trusted, run the collector in shadow mode against Marshall's manual block for several publication days and reconcile mismatches.
+- readiness count;
+- collection time;
+- the exact block;
+- Copy when the block is 8/8;
+- Refresh;
+- a collapsed source list;
+- explicit missing fields if collection is incomplete.
 
-## Evidence rules
+Architecture notes, implementation status and scheduling commentary do not belong on the reporter-facing page.
 
-- Every value must preserve source and retrieval timestamp.
-- Do not convert the exact block into narrative prose.
-- Preserve source wording/units where relevant to cash bids.
-- Do not silently carry forward stale values from a prior edition.
-- Store each completed run as an edition so everyone in the Forum workspace sees the same canonical result.
+## Not in this tranche
 
-## Still to define
-
-The exact scheduled run time/cadence was not recovered. Do not invent it. The collector may be built and shadow-run before the final schedule is selected.
-
-## Build order
-
-1. Exact Mitchell Markets surface and source contract
-2. Live eight-value collector + shadow-run validation
-3. Scheduled edition generation/archive
-4. Transcript Core
-5. Sports Desk
+- automatic Brightspot delivery;
+- broader Forum rollout;
+- scheduled delivery;
+- historical archive;
+- narrative market analysis.

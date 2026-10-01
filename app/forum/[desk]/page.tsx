@@ -28,13 +28,8 @@ export default async function DeskPage({ params, searchParams }: DeskPageProps) 
     return <MunicipalDesk query={query} />;
   }
 
-  if (desk.slug === "markets") {
-    return <MarketsDesk />;
-  }
-
-  if (desk.slug === "transcripts") {
-    return <TranscriptsDesk />;
-  }
+  if (desk.slug === "markets") return <MarketsDesk />;
+  if (desk.slug === "transcripts") return <TranscriptsDesk />;
 
   return (
     <>
@@ -44,28 +39,11 @@ export default async function DeskPage({ params, searchParams }: DeskPageProps) 
           <h1>{desk.label}</h1>
           <span className={`status status-${desk.status}`}>{desk.statusLabel}</span>
         </div>
-        <p>{desk.description}</p>
       </header>
 
       <section className="empty-state">
-        <p className="eyebrow">Current state</p>
-        <h2>This desk is intentionally not connected to live newsroom data yet.</h2>
-        <p>{desk.nextStep}</p>
-      </section>
-
-      <section className="boundary-grid">
-        <article>
-          <h3>What Newsroom will own</h3>
-          <p>Human navigation, workspace access, presentation and the shared newsroom view.</p>
-        </article>
-        <article>
-          <h3>What stays downstream</h3>
-          <p>The source-specific service retains evidence custody, provenance and its own domain contract.</p>
-        </article>
-        <article>
-          <h3>Before private data</h3>
-          <p>Authentication and server-side authorization must be active and tested before private newsroom sources are connected.</p>
-        </article>
+        <h2>Not available yet.</h2>
+        <p>{desk.description}</p>
       </section>
     </>
   );

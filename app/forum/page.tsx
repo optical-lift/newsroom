@@ -1,13 +1,24 @@
 import Link from "next/link";
 import { forumWorkspace } from "@/lib/newsroom";
 
+export const dynamic = "force-dynamic";
+
+function todayLabel() {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Chicago",
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  }).format(new Date());
+}
+
 export default function ForumTodayPage() {
   return (
     <>
       <header className="page-header">
-        <p className="eyebrow">Thursday, Oct. 1, 2026</p>
+        <p className="eyebrow">{todayLabel()}</p>
         <h1>Today</h1>
-        <p>One place for the reporting systems your newsroom uses. The Municipal desk now has a live public-record source connection; private newsroom sources remain disconnected until access control is in place.</p>
       </header>
 
       <section className="desk-grid" aria-label="Newsroom desks">
@@ -18,15 +29,9 @@ export default function ForumTodayPage() {
               <span className={`status status-${desk.status}`}>{desk.statusLabel}</span>
             </div>
             <p>{desk.description}</p>
-            <span className="card-link">Open desk →</span>
+            <span className="card-link">Open →</span>
           </Link>
         ))}
-      </section>
-
-      <section className="principle-card">
-        <p className="eyebrow">Governing rule</p>
-        <h2>Evidence systems own the source. Newsroom owns the human workspace.</h2>
-        <p>Reporters should be able to move from a record to its underlying evidence without needing retrieval infrastructure, database credentials or Atlas. A public source may be connected before authentication; private newsroom material may not.</p>
       </section>
     </>
   );

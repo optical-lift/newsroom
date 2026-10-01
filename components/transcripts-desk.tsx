@@ -1,121 +1,18 @@
-import Link from "next/link";
-
-const stages = [
-  ["1", "Source custody", "Use the existing Transcript Core workspace, assets and private observed-originals storage boundary."],
-  ["2", "Processing", "Reuse the existing processing_jobs lifecycle instead of creating a parallel queue/state model."],
-  ["3", "Addressable transcript", "Read the existing transcript, revision, segment and segment-version identities."],
-  ["4", "Correction", "Preserve later human revisions without erasing prior machine output."],
-  ["5", "Playback & search", "Return scoped media access and stable evidence-linked search results."],
-  ["6", "Speaker structure", "Reuse existing speaker analysis, clusters, candidates and assignments."],
-  ["7", "Reporting bridge", "Let Reporting Core reference Transcript Core evidence without copying source custody."]
-] as const;
-
 export default function TranscriptsDesk() {
   return (
     <>
-      <style>{`
-        .transcript-header { margin-bottom: 24px; }
-        .transcript-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding: 18px 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-        .transcript-toolbar h2, .transcript-library h2, .transcript-proof h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 500; }
-        .transcript-toolbar h2 { font-size: 25px; }
-        .transcript-toolbar p { margin: 5px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
-        .disabled-upload { border: 0; border-radius: 8px; padding: 11px 15px; background: #d9ddd9; color: #717a74; font-weight: 800; cursor: not-allowed; }
-        .transcript-grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, .7fr); gap: 16px; align-items: start; }
-        .transcript-library, .transcript-proof { padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-        .transcript-library h2, .transcript-proof h2 { font-size: 27px; }
-        .library-empty { margin-top: 18px; padding: 30px 24px; border: 1px dashed #c8ccc7; border-radius: 10px; background: #f0efe9; }
-        .library-empty strong { display: block; margin-bottom: 8px; font-family: Georgia, 'Times New Roman', serif; font-size: 23px; font-weight: 500; }
-        .library-empty p { margin: 0; max-width: 650px; color: var(--muted); font-size: 13px; line-height: 1.55; }
-        .proof-list { display: grid; margin-top: 16px; }
-        .proof-row { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 12px 0; border-top: 1px solid #ecebe5; }
-        .proof-row:first-child { border-top: 0; }
-        .proof-number { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 50%; background: var(--soft-accent); color: var(--accent); font-size: 10px; font-weight: 900; }
-        .proof-row strong { display: block; font-size: 12px; }
-        .proof-row span { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.45; }
-        .transcript-contract { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
-        .transcript-contract article { padding: 20px; border-top: 2px solid var(--ink); }
-        .transcript-contract h3 { margin: 0 0 8px; font-size: 13px; }
-        .transcript-contract p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
-        .transcript-backlink { margin-top: 24px; }
-        .transcript-backlink a { color: var(--accent); font-weight: 800; }
-        @media (max-width: 900px) {
-          .transcript-grid, .transcript-contract { grid-template-columns: 1fr; }
-          .transcript-toolbar { align-items: flex-start; flex-direction: column; }
-        }
-      `}</style>
-
-      <header className="page-header transcript-header">
-        <p className="eyebrow">Mitchell Republic · Transcript Core</p>
+      <header className="page-header">
+        <p className="eyebrow">Mitchell Republic</p>
         <div className="title-row">
           <h1>Transcripts</h1>
-          <span className="status status-connected">Existing core found</span>
+          <span className="status status-planned">Coming next</span>
         </div>
-        <p>
-          Recorded audio becomes durable, searchable, source-linked evidence. Newsroom is using the existing Transcript Core schema and private storage rather than creating a second transcript system.
-        </p>
       </header>
 
-      <section className="transcript-toolbar">
-        <div>
-          <p className="eyebrow">Recording library</p>
-          <h2>Forum workspace</h2>
-          <p>The persistence layer already exists. Upload remains disabled until the Newsroom server adapter and authenticated workspace mapping are connected.</p>
-        </div>
-        <button className="disabled-upload" type="button" disabled aria-disabled="true">Upload recording</button>
+      <section className="empty-state">
+        <h2>Recording upload and transcription are not available yet.</h2>
+        <p>This is the next Newsroom build after Markets.</p>
       </section>
-
-      <div className="transcript-grid">
-        <section className="transcript-library">
-          <p className="eyebrow">Library</p>
-          <h2>No Forum recording workspace is connected yet</h2>
-          <div className="library-empty">
-            <strong>The storage and transcript schema already exist.</strong>
-            <p>
-              The next cut is no longer database design. It is the server-side adapter that verifies a reporter&apos;s Transcript Core workspace membership, reads the existing recording library and issues signed upload/playback access to the existing private buckets.
-            </p>
-          </div>
-        </section>
-
-        <section className="transcript-proof">
-          <p className="eyebrow">Implementation spine</p>
-          <h2>Reuse what is already real</h2>
-          <div className="proof-list">
-            {stages.map(([number, title, description]) => (
-              <div className="proof-row" key={number}>
-                <div className="proof-number">{number}</div>
-                <div>
-                  <strong>{title}</strong>
-                  <span>{description}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <section className="transcript-contract">
-        <article>
-          <h3>One physical Supabase</h3>
-          <p>Newsroom shares the existing noel-core Supabase project to avoid added cost, while Transcript Core remains isolated in its own schema and private storage buckets.</p>
-        </article>
-        <article>
-          <h3>Transcript Core owns evidence</h3>
-          <p>Existing assets, recordings, processing jobs, revisioned transcripts, stable segments and speaker structures remain the authoritative transcript domain.</p>
-        </article>
-        <article>
-          <h3>Reporting stays downstream</h3>
-          <p>The existing reporting schema can later reference exact Transcript Core evidence. It does not become another copy of the audio or transcript system.</p>
-        </article>
-      </section>
-
-      <section className="evidence-rule">
-        <strong>Next implementation</strong>
-        <p>
-          Build the server-side Supabase adapter against the existing Transcript Core schema, map the Forum surface to an authorized Transcript Core workspace, then prove the first signed upload into <code>transcript-core-observed-originals</code>. No new Transcript Core tables are required.
-        </p>
-      </section>
-
-      <p className="quiet-note transcript-backlink"><Link href="/forum">← Back to Today</Link></p>
     </>
   );
 }

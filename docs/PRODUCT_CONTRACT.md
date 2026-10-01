@@ -2,37 +2,36 @@
 
 ## Purpose
 
-Optical Lift Newsroom is a private human workspace that exposes reporting intelligence produced by source-specific systems.
+Optical Lift Newsroom is a private human workspace that automates real reporting work. The current pilot is for Marshall at the Mitchell Republic.
 
-The first client workspace is Forum Communications / Mitchell Republic at `/forum`.
+The workspace lives at `/forum` and requires an authorized login.
 
-## V1 navigation
+## Current desks
 
-- Today — current state of the workspace and connected desks.
-- Transcripts — future human surface over Transcript Core.
-- Municipal — future human surface over CivicClerk Bridge and municipal reporting services.
-- Sports — future human surface over sports-source adapters.
-- Markets — future shared recurring markets update and archive.
+- Markets — live Mitchell eight-value market/grain block.
+- Municipal — CivicClerk meeting records and attachments.
+- Transcripts — next build.
+- Sports — later build.
 
-## Ownership boundary
+## Boundary
 
 ```text
 source/evidence system
         ↓
-stable read contract
+stable read or processing contract
         ↓
 Optical Lift Newsroom
         ↓
-human reporter/editor
+reporter
 ```
 
-Newsroom owns presentation, navigation, workspace access, and shared human workflow state. Source/evidence services remain authoritative for the records they produce.
+Newsroom owns the private human workspace and presentation. Source/evidence systems remain authoritative for their records.
 
-## V1 non-goals
+## Current non-goals
 
-- No dependency on Atlas.
+- No Brightspot integration yet.
+- No broader Forum rollout yet.
 - No automatic publishing.
-- No CMS replacement.
-- No autonomous editorial assignments.
-- No chatbot-first UX.
-- No private customer data in the public repository.
+- No chatbot-first interface.
+- No Atlas dependency.
+- No private newsroom data in the public repository.
