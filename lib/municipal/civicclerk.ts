@@ -4,7 +4,14 @@ export const certifiedMunicipalQuery = {
   date: "2026-08-18"
 } as const;
 
+export type MunicipalQuery = {
+  tenant: "mitchellsd";
+  body: string;
+  date: string;
+};
+
 const DEFAULT_BRIDGE_URL = "https://civicclerk-bridge.vercel.app";
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 type PublishedFile = {
   fileId: number | null;
@@ -34,11 +41,7 @@ type AgendaItem = {
 
 export type MunicipalMeetingSnapshot = {
   tenant: string;
-  category: {
-    id: number | null;
-    name: string | null;
-    isPublic: boolean | null;
-  };
+  category: { id: number | null; name: string | null; isPublic: boolean | null };
   event: {
     id: number | null;
     date: string | null;
@@ -54,21 +57,15 @@ export type MunicipalMeetingSnapshot = {
   minutesText: string | null;
   agendaItems: AgendaItem[];
   attachments: AgendaAttachment[];
-  provenance: {
-    eventsApi: string | null;
-    agendaApi: string | null;
-    retrievedAt: string | null;
-  };
+  provenance: { eventsApi: string | null; agendaApi: string | null; retrievedAt: string | null };
 };
 
 export type MunicipalSnapshotResult =
-  | { ok: true; data: MunicipalMeetingSnapshot; bridgeUrl: string }
-  | { ok: false; error: string; bridgeUrl: string };
+  | { ok: true; data: MunicipalMeetingSnapshot; bridgeUrl: string; query: MunicipalQuery }
+  | { ok: false; error: string; bridgeUrl: string; query: MunicipalQuery };
 
 function record(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
-    : null;
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
 
 function text(value: unknown): string | null {
@@ -122,7 +119,7 @@ function parseAgendaItem(value: unknown): AgendaItem {
   };
 }
 
-function normalizeSnapshot(value: unknown): MunicipalMeetingSnapshot | null {
+function normalizeSnapshot(value: unknown, fallbackTenant: string): MunicipalMeetingSnapshot | null {
   const root = record(value);
   const category = record(root?.category);
   const event = record(root?.event);
@@ -130,7 +127,7 @@ function normalizeSnapshot(value: unknown): MunicipalMeetingSnapshot | null {
   if (!root || !event) return null;
 
   return {
-    tenant: text(root.tenant) ?? certifiedMunicipalQuery.tenant,
+    tenant: text(root.tenant) ?? fallbackTenant,
     category: {
       id: number(category?.id),
       name: text(category?.name),
@@ -159,14 +156,32 @@ function normalizeSnapshot(value: unknown): MunicipalMeetingSnapshot | null {
   };
 }
 
-export async function getCertifiedMunicipalSnapshot(): Promise<MunicipalSnapshotResult> {
+export function municipalQuery(body?: string | null, date?: string | null): MunicipalQuery {
+  const cleanBody = String(body ?? "").trim();
+  const cleanDate = String(date ?? "").trim();
+  return {
+    tenant: "mitchellsd",
+    body: cleanBody || certifiedMunicipalQuery.body,
+    date: cleanDate || certifiedMunicipalQuery.date
+  };
+}
+
+function validateQuery(query: MunicipalQuery): string | null {
+  if (!query.body || query.body.length > 120) return "Meeting body must be between 1 and 120 characters.";
+  if (!DATE_RE.test(query.date)) return "Meeting date must use YYYY-MM-DD format.";
+  const parsed = new Date(`${query.date}T00:00:00Z`);
+  if (Number.isNaN(parsed.valueOf()) || parsed.toISOString().slice(0, 10) !== query.date) {
+    return "Meeting date is not a valid calendar date.";
+  }
+  return null;
+}
+
+export async function getMunicipalSnapshot(query: MunicipalQuery): Promise<MunicipalSnapshotResult> {
   const base = (process.env.CIVICCLERK_BRIDGE_URL || DEFAULT_BRIDGE_URL).replace(/\/+$/, "");
-  const params = new URLSearchParams({
-    tenant: certifiedMunicipalQuery.tenant,
-    body: certifiedMunicipalQuery.body,
-    date: certifiedMunicipalQuery.date
-  });
+  const params = new URLSearchParams({ tenant: query.tenant, body: query.body, date: query.date });
   const bridgeUrl = `${base}/api/meeting?${params.toString()}`;
+  const validationError = validateQuery(query);
+  if (validationError) return { ok: false, error: validationError, bridgeUrl, query };
 
   try {
     const response = await fetch(bridgeUrl, {
@@ -183,17 +198,18 @@ export async function getCertifiedMunicipalSnapshot(): Promise<MunicipalSnapshot
       } catch {
         // Keep the status-based error when the response is not JSON.
       }
-      return { ok: false, error: detail, bridgeUrl };
+      return { ok: false, error: detail, bridgeUrl, query };
     }
 
-    const snapshot = normalizeSnapshot(await response.json());
-    if (!snapshot) {
-      return { ok: false, error: "CivicClerk Bridge returned an unexpected meeting shape.", bridgeUrl };
-    }
-
-    return { ok: true, data: snapshot, bridgeUrl };
+    const snapshot = normalizeSnapshot(await response.json(), query.tenant);
+    if (!snapshot) return { ok: false, error: "CivicClerk Bridge returned an unexpected meeting shape.", bridgeUrl, query };
+    return { ok: true, data: snapshot, bridgeUrl, query };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    return { ok: false, error: `Unable to reach CivicClerk Bridge: ${message}`, bridgeUrl };
+    return { ok: false, error: `Unable to reach CivicClerk Bridge: ${message}`, bridgeUrl, query };
   }
+}
+
+export async function getCertifiedMunicipalSnapshot(): Promise<MunicipalSnapshotResult> {
+  return getMunicipalSnapshot(municipalQuery());
 }
