@@ -30,6 +30,35 @@ const sections = [
 export default function MarketsDesk() {
   return (
     <>
+      <style>{`
+        .markets-header { margin-bottom: 24px; }
+        .markets-subnav { display: flex; gap: 8px; margin: 0 0 22px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+        .markets-subnav span { padding: 8px 11px; border-radius: 7px; color: var(--muted); font-size: 12px; font-weight: 800; }
+        .markets-subnav .active { background: var(--ink); color: white; }
+        .markets-status-card { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(220px, .6fr); gap: 28px; padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+        .markets-status-card h2, .markets-section-card h2, .markets-governance h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-weight: 500; }
+        .markets-status-card h2 { max-width: 760px; font-size: 31px; line-height: 1.16; }
+        .markets-status-card > div > p:last-child { color: var(--muted); line-height: 1.55; }
+        .markets-status-meta { display: grid; align-content: start; grid-template-columns: 1fr; gap: 4px; padding-left: 24px; border-left: 1px solid var(--line); }
+        .markets-status-meta span { margin-top: 8px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+        .markets-status-meta span:first-child { margin-top: 0; }
+        .markets-status-meta strong { font-size: 13px; line-height: 1.4; }
+        .markets-section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+        .markets-section-card { display: flex; flex-direction: column; min-height: 220px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+        .markets-section-card h2 { font-size: 26px; line-height: 1.14; }
+        .markets-section-card > p:not(.eyebrow) { color: var(--muted); line-height: 1.5; }
+        .markets-empty-row { margin-top: auto; padding-top: 14px; border-top: 1px solid #ecebe5; color: #8b938e; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+        .markets-governance { margin-top: 16px; }
+        .markets-governance h2 { max-width: 780px; font-size: 30px; line-height: 1.15; }
+        .markets-governance > p:last-child { max-width: 820px; color: var(--muted); line-height: 1.55; }
+        .markets-backlink { margin-top: 24px; }
+        .markets-backlink a { color: var(--accent); font-weight: 800; }
+        @media (max-width: 850px) {
+          .markets-status-card, .markets-section-grid { grid-template-columns: 1fr; }
+          .markets-status-meta { padding-left: 0; padding-top: 18px; border-left: 0; border-top: 1px solid var(--line); }
+        }
+      `}</style>
+
       <header className="page-header markets-header">
         <p className="eyebrow">Mitchell Republic · shared newsroom process</p>
         <div className="title-row">
@@ -41,8 +70,8 @@ export default function MarketsDesk() {
         </p>
       </header>
 
-      <nav className="subnav" aria-label="Markets sections">
-        <span className="subnav-active">Today</span>
+      <nav className="markets-subnav" aria-label="Markets sections">
+        <span className="active">Today</span>
         <span>Archive</span>
         <span>Sources</span>
       </nav>
