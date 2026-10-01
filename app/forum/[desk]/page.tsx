@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import MarketsDesk from "@/components/markets-desk";
 import MunicipalDesk from "@/components/municipal-desk";
 import { municipalQuery } from "@/lib/municipal/civicclerk";
 import { getDesk } from "@/lib/newsroom";
@@ -24,6 +25,10 @@ export default async function DeskPage({ params, searchParams }: DeskPageProps) 
     const queryParams = await searchParams;
     const query = municipalQuery(first(queryParams.body), first(queryParams.date));
     return <MunicipalDesk query={query} />;
+  }
+
+  if (desk.slug === "markets") {
+    return <MarketsDesk />;
   }
 
   return (
