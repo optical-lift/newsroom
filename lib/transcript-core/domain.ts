@@ -1,25 +1,14 @@
-export type RecordingState =
-  | "uploading"
-  | "source_ready"
-  | "processing"
-  | "partially_processed"
-  | "ready"
-  | "failed_retryable"
-  | "failed_terminal"
-  | "deleted";
+export type AssetProvenanceClass =
+  | "observed_original"
+  | "observed_derivative"
+  | "script_source"
+  | "generated_take"
+  | "generated_render"
+  | "authored_performance_take"
+  | "authored_performance_master"
+  | "authored_performance_recording";
 
-export type AudioAssetKind = "original" | "normalized" | "chunk";
-
-export type ProcessingStage =
-  | "validate"
-  | "normalize"
-  | "chunk"
-  | "transcribe"
-  | "reassemble"
-  | "diarize"
-  | "index";
-
-export type ProcessingState =
+export type ProcessingJobStatus =
   | "queued"
   | "processing"
   | "partially_processed"
@@ -27,56 +16,68 @@ export type ProcessingState =
   | "failed_retryable"
   | "failed_terminal";
 
-export type RevisionKind = "machine" | "human";
+export type TranscriptRevisionKind = "machine" | "human";
 
 export type RevisionPolicy =
   | { policy: "latest" }
   | { policy: "pinned"; revisionId: string };
 
+export type TranscriptWorkspace = {
+  id: string;
+  name: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export type TranscriptWorkspaceMembership = {
+  workspaceId: string;
+  userId: string;
+  role: "owner" | "editor" | "viewer";
+  createdAt: string;
+};
+
+export type TranscriptAsset = {
+  id: string;
+  workspaceId: string;
+  provenanceClass: AssetProvenanceClass;
+  storageBucket: string;
+  storagePath: string;
+  contentHash: string;
+  mimeType: string;
+  byteSize: number;
+  createdAt: string;
+};
+
 export type Recording = {
   id: string;
   workspaceId: string;
+  sourceAssetId: string;
   title: string;
-  recordedAt: string | null;
-  durationMs: number | null;
-  state: RecordingState;
-  originalAssetId: string | null;
-  createdAt: string;
-  deletedAt: string | null;
-};
-
-export type AudioAsset = {
-  id: string;
-  workspaceId: string;
-  recordingId: string;
-  kind: AudioAssetKind;
-  storagePath: string;
-  contentType: string | null;
-  byteSize: number | null;
-  sha256: string | null;
   createdAt: string;
 };
 
 export type ProcessingJob = {
   id: string;
   workspaceId: string;
-  recordingId: string;
-  stage: ProcessingStage;
-  state: ProcessingState;
-  provider: string | null;
-  model: string | null;
-  attempt: number;
+  jobType: string;
+  status: ProcessingJobStatus;
   sourceAssetId: string | null;
-  outputAssetId: string | null;
+  attempt: number;
+  provider: string | null;
+  providerModel: string | null;
+  queueName: string | null;
+  queueMessageId: number | null;
+  claimedAt: string | null;
+  heartbeatAt: string | null;
   errorCode: string | null;
   errorMessage: string | null;
   createdAt: string;
-  updatedAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
 };
 
 export type Transcript = {
   id: string;
-  workspaceId: string;
   recordingId: string;
   currentRevisionId: string | null;
   createdAt: string;
@@ -84,29 +85,32 @@ export type Transcript = {
 
 export type TranscriptRevision = {
   id: string;
-  workspaceId: string;
   transcriptId: string;
   ordinal: number;
-  kind: RevisionKind;
+  revisionKind: TranscriptRevisionKind;
+  sourceJobId: string | null;
   provider: string | null;
-  model: string | null;
+  providerModel: string | null;
+  createdBy: string | null;
   createdAt: string;
 };
 
 export type TranscriptSegment = {
   id: string;
-  workspaceId: string;
   transcriptId: string;
-  startMs: number;
-  endMs: number;
+  sequence: number;
+  anchorStartMs: number;
+  anchorEndMs: number;
   createdAt: string;
 };
 
-export type SegmentText = {
-  workspaceId: string;
-  revisionId: string;
-  segmentId: string;
+export type TranscriptSegmentVersion = {
+  transcriptRevisionId: string;
+  transcriptSegmentId: string;
+  startMs: number;
+  endMs: number;
   text: string;
+  providerSpeaker: string | null;
 };
 
 export type TranscriptEvidenceReference = {
