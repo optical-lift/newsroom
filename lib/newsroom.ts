@@ -37,9 +37,9 @@ export const forumWorkspace = {
     {
       slug: "transcripts",
       label: "Transcripts",
-      description: "Recorded interviews and meetings with searchable transcripts.",
-      status: "planned",
-      statusLabel: "Coming next"
+      description: "Upload recordings and work from searchable, timestamped transcripts.",
+      status: "connected",
+      statusLabel: "Pilot"
     },
     {
       slug: "sports",
