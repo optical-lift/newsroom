@@ -43,9 +43,9 @@ export const forumWorkspace = {
       slug: "markets",
       label: "Markets",
       description: "A shared recurring markets update with one canonical edition for the newsroom.",
-      status: "planned",
-      statusLabel: "Automation pending",
-      nextStep: "Recover the Markets Update specification, then build it as a workspace-owned scheduled process."
+      status: "architecture-ready",
+      statusLabel: "Update structure ready",
+      nextStep: "Define the authoritative source set and run cadence, then connect scheduled edition generation."
     }
   ] satisfies Desk[]
 };
