@@ -19,7 +19,15 @@ This repository is public. Never commit:
 - API keys, service-role keys, tokens, cookies, database passwords, or secrets;
 - production database dumps or logs containing customer data.
 
-Use server-side environment variables for credentials. Real workspace data may not be connected until authentication and server-side authorization are implemented and verified.
+Use server-side environment variables for credentials. Public-source adapters may be connected without workspace authentication when they expose only material already public at the source. Private workspace data may not be connected until authentication and server-side authorization are implemented and verified.
+
+## Source-adapter rules
+
+- Keep source-specific retrieval in a narrow adapter under `lib/<domain>`.
+- Normalize only the fields Newsroom needs for presentation; do not copy source authority or hidden `raw` payloads into shared Newsroom state.
+- A source failure must render as unavailable rather than falling back to invented or stale facts.
+- Preserve source identifiers, retrieval provenance, verification state and source links when supplied by the source service.
+- Do not add editorial interpretation to source adapters.
 
 ## Product rules
 

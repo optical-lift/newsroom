@@ -17,13 +17,23 @@ Newsroom owns the workspace reporters use. It does not replace the systems that 
 
 The first workspace is `/forum`, with these desk routes:
 
-- `/forum/today`
+- `/forum` — Today
 - `/forum/transcripts`
 - `/forum/municipal`
 - `/forum/sports`
 - `/forum/markets`
 
-The first release is a safe shell only. No private Forum data, recordings, transcripts, notes, credentials, or customer secrets belong in this public repository.
+The Municipal desk is the first live source slice. It reads a certified Mitchell CivicClerk meeting from the existing read-only CivicClerk Bridge and presents meeting identifiers, agenda structure, attachments, published files, minutes availability, and retrieval provenance. The Bridge remains authoritative for CivicClerk retrieval and custody.
+
+The certified pilot query is:
+
+- tenant: `mitchellsd`
+- body: `Sports & Events Authority`
+- date: `2026-08-18`
+
+Override the bridge host server-side with `CIVICCLERK_BRIDGE_URL` when needed. The default is `https://civicclerk-bridge.vercel.app`.
+
+No private Forum data, recordings, transcripts, notes, credentials, or customer secrets belong in this public repository. Public-source adapters may be connected before workspace authentication; private newsroom sources may not.
 
 ## Local development
 
@@ -32,6 +42,13 @@ npm install
 npm run dev
 ```
 
+## Validation
+
+```bash
+npm run typecheck
+npm run build
+```
+
 ## Production rule
 
-Public code does not make newsroom data public. Real workspace data may be connected only after authentication and server-side authorization are in place.
+Public code does not make newsroom data public. Credentials belong in server-side environment variables. Private workspace data may be connected only after authentication and server-side authorization are implemented and verified.

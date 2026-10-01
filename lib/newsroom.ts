@@ -1,4 +1,4 @@
-export type DeskStatus = "ready-to-connect" | "planned" | "architecture-ready";
+export type DeskStatus = "connected" | "planned" | "architecture-ready";
 
 export type Desk = {
   slug: "transcripts" | "municipal" | "sports" | "markets";
@@ -13,7 +13,7 @@ export const forumWorkspace = {
   organization: "Forum Communications",
   publication: "Mitchell Republic",
   workspaceSlug: "forum",
-  mode: "shell" as const,
+  mode: "public-source-pilot" as const,
   desks: [
     {
       slug: "transcripts",
@@ -21,15 +21,15 @@ export const forumWorkspace = {
       description: "Recordings, searchable transcripts, speaker correction and source playback.",
       status: "architecture-ready",
       statusLabel: "Architecture ready",
-      nextStep: "Implement the standalone Transcript Core service before connecting newsroom data."
+      nextStep: "Implement the standalone Transcript Core service before connecting private newsroom recordings."
     },
     {
       slug: "municipal",
       label: "Municipal",
       description: "Meeting records, attachments, source custody and municipal reporting evidence.",
-      status: "ready-to-connect",
-      statusLabel: "Bridge ready",
-      nextStep: "Connect the existing CivicClerk Bridge through a read-only Newsroom adapter after authentication."
+      status: "connected",
+      statusLabel: "Public source live",
+      nextStep: "Expand the certified CivicClerk slice into meeting/body/date discovery while preserving the Bridge as source authority."
     },
     {
       slug: "sports",
