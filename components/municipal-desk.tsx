@@ -1,4 +1,4 @@
-import { certifiedMunicipalQuery, getCertifiedMunicipalSnapshot } from "@/lib/municipal/civicclerk";
+import { certifiedMunicipalQuery, getMunicipalSnapshot, type MunicipalQuery } from "@/lib/municipal/civicclerk";
 
 function displayDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -26,26 +26,57 @@ function displayRetrievedAt(value: string | null) {
   }).format(date);
 }
 
-export default async function MunicipalDesk() {
-  const result = await getCertifiedMunicipalSnapshot();
+function LookupForm({ query }: { query: MunicipalQuery }) {
+  const isCertified = query.body === certifiedMunicipalQuery.body && query.date === certifiedMunicipalQuery.date;
+  return (
+    <section className="municipal-lookup" aria-labelledby="municipal-lookup-title">
+      <div>
+        <p className="eyebrow">Find a Mitchell meeting</p>
+        <h2 id="municipal-lookup-title">Meeting lookup</h2>
+        <p>Enter the CivicClerk meeting body and meeting date. Newsroom asks the Bridge for that public record; it does not guess if the source cannot resolve it.</p>
+      </div>
+      <form action="/forum/municipal" method="get" className="lookup-form">
+        <label>
+          <span>Meeting body</span>
+          <input name="body" defaultValue={query.body} maxLength={120} required />
+        </label>
+        <label>
+          <span>Date</span>
+          <input name="date" type="date" defaultValue={query.date} required />
+        </label>
+        <div className="lookup-actions">
+          <button type="submit">Load meeting</button>
+          {!isCertified && <a href="/forum/municipal">Reset to certified example</a>}
+        </div>
+      </form>
+    </section>
+  );
+}
+
+export default async function MunicipalDesk({ query }: { query: MunicipalQuery }) {
+  const result = await getMunicipalSnapshot(query);
 
   if (!result.ok) {
     return (
       <>
-        <header className="page-header">
-          <p className="eyebrow">Mitchell Republic</p>
+        <header className="page-header municipal-header">
+          <p className="eyebrow">Mitchell Republic · public municipal records</p>
           <div className="title-row">
             <h1>Municipal</h1>
-            <span className="status status-source-error">Source unavailable</span>
+            <span className="status status-source-error">Source unresolved</span>
           </div>
-          <p>Public municipal records presented from the read-only CivicClerk Bridge.</p>
+          <p>Read-only access to Mitchell CivicClerk records through the CivicClerk Bridge.</p>
         </header>
 
+        <LookupForm query={query} />
+
         <section className="source-error-card">
-          <p className="eyebrow">CivicClerk Bridge</p>
-          <h2>The certified source snapshot could not be loaded.</h2>
+          <p className="eyebrow">No source record loaded</p>
+          <h2>{query.body} · {displayDate(query.date)}</h2>
           <p>{result.error}</p>
-          <a href={result.bridgeUrl} rel="noreferrer" target="_blank">Open bridge response ↗</a>
+          <div className="source-links">
+            <a href={result.bridgeUrl} rel="noreferrer" target="_blank">Open bridge response ↗</a>
+          </div>
         </section>
       </>
     );
@@ -54,24 +85,27 @@ export default async function MunicipalDesk() {
   const snapshot = result.data;
   const visibleItems = snapshot.agendaItems.filter((item) => item.name).slice(0, 40);
   const hiddenItemCount = Math.max(0, snapshot.agendaItems.filter((item) => item.name).length - visibleItems.length);
-  const meetingLabel = snapshot.event.name || snapshot.category.name || certifiedMunicipalQuery.body;
+  const meetingLabel = snapshot.event.name || snapshot.category.name || query.body;
+  const isCertified = query.body === certifiedMunicipalQuery.body && query.date === certifiedMunicipalQuery.date;
 
   return (
     <>
       <header className="page-header municipal-header">
-        <p className="eyebrow">Mitchell Republic · certified public-record slice</p>
+        <p className="eyebrow">Mitchell Republic · public municipal records</p>
         <div className="title-row">
           <h1>Municipal</h1>
           <span className="status status-connected">Live source</span>
         </div>
         <p>
-          This page reads a known-good Mitchell CivicClerk meeting through the Bridge. It presents source state only—no editorial ranking, summary inference or unpublished newsroom material.
+          This desk reads Mitchell CivicClerk meetings through the Bridge and presents source state only—no editorial ranking, summary inference or unpublished newsroom material.
         </p>
       </header>
 
+      <LookupForm query={query} />
+
       <section className="meeting-hero">
         <div>
-          <p className="eyebrow">{displayDate(certifiedMunicipalQuery.date)}</p>
+          <p className="eyebrow">{displayDate(query.date)}{isCertified ? " · certified example" : ""}</p>
           <h2>{meetingLabel}</h2>
           <p>{snapshot.event.location || "Location not supplied in the meeting record."}</p>
         </div>
@@ -148,7 +182,8 @@ export default async function MunicipalDesk() {
             <h2>Where this came from</h2>
             <dl className="provenance-list">
               <div><dt>Tenant</dt><dd>{snapshot.tenant}</dd></div>
-              <div><dt>Meeting category</dt><dd>{snapshot.category.name || "—"}</dd></div>
+              <div><dt>Requested body</dt><dd>{query.body}</dd></div>
+              <div><dt>Resolved category</dt><dd>{snapshot.category.name || "—"}</dd></div>
               <div><dt>Retrieved</dt><dd>{displayRetrievedAt(snapshot.provenance.retrievedAt)}</dd></div>
             </dl>
             <div className="source-links">
@@ -179,8 +214,8 @@ export default async function MunicipalDesk() {
       </section>
 
       <section className="evidence-rule">
-        <strong>What this page proves</strong>
-        <p>It proves Newsroom can consume a source-owned municipal meeting snapshot, preserve identifiers and provenance, and present the record to a reporter without copying CivicClerk authority into Newsroom.</p>
+        <strong>Source boundary</strong>
+        <p>Newsroom chooses what a reporter sees; CivicClerk Bridge still owns meeting resolution, retrieval and source custody. An unresolved query stays unresolved rather than becoming an inferred newsroom fact.</p>
       </section>
     </>
   );
