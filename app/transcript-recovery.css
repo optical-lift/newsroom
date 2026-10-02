@@ -1,0 +1,87 @@
+/* Recovery surface for preserved long recordings whose browser-side chunk preparation was interrupted. */
+
+.transcript-recovery-panel {
+  margin: -4px 0 18px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.transcript-recovery-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  padding: 14px 0;
+}
+
+.transcript-recovery-row + .transcript-recovery-row {
+  border-top: 1px solid #e7e5de;
+}
+
+.transcript-recovery-copy {
+  min-width: 0;
+}
+
+.transcript-recovery-copy .eyebrow {
+  margin-bottom: 4px;
+}
+
+.transcript-recovery-copy strong {
+  display: block;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.transcript-recovery-copy p:not(.eyebrow) {
+  margin: 5px 0 0;
+  max-width: 760px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.transcript-recovery-copy small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.transcript-recovery-copy .transcript-recovery-phase {
+  color: #52654d;
+  font-weight: 800;
+}
+
+.transcript-recovery-copy progress {
+  display: block;
+  width: min(520px, 100%);
+  margin-top: 7px;
+}
+
+.transcript-recovery-message {
+  margin: 0 0 12px;
+  padding: 8px 10px;
+  border-left: 2px solid #7d9a84;
+  background: #edf1ea;
+  color: #405248;
+  font-size: 10px;
+}
+
+.transcript-recovery-message.error {
+  border-left-color: #a9645b;
+  background: #f7e8e5;
+  color: #7b3028;
+}
+
+@media (max-width: 760px) {
+  .transcript-recovery-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .transcript-recovery-row > button {
+    justify-self: start;
+  }
+}

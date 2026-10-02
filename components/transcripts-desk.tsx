@@ -1,4 +1,5 @@
 import TranscriptLibrary from "@/components/transcript-library";
+import TranscriptRecoveryPanel from "@/components/transcript-recovery-panel";
 
 type TranscriptsDeskProps = {
   publicationId: string;
@@ -14,6 +15,7 @@ export default function TranscriptsDesk({ publicationId, publicationName, worksp
         <h1>Transcripts</h1>
         <p>Recent recordings, reporting collections and transcript work.</p>
       </header>
+      <TranscriptRecoveryPanel workspaceId={workspaceId} />
       <TranscriptLibrary publicationId={publicationId} publicationName={publicationName} workspaceId={workspaceId} />
     </>
   );
