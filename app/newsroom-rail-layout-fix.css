@@ -4,14 +4,83 @@
   overflow: visible;
 }
 
+.newsroom-rail__top { order: 0; }
+.newsroom-global-chassis { order: 1; }
+.newsroom-rail__nav { order: 2; }
+.newsroom-rail__context { order: 3; }
+.newsroom-rail__account-zone { order: 4; }
+
+/* Global SaaS chassis: New + Search stay accessible everywhere; Account remains anchored at the bottom. */
+.newsroom-global-chassis {
+  display: grid;
+  gap: 2px;
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--newsroom-rail-rule);
+}
+
+.newsroom-global-action {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 6px;
+  padding: 0;
+  background: transparent;
+  color: #c8ceca;
+  cursor: pointer;
+  text-align: left;
+}
+
+.newsroom-global-action:hover {
+  background: rgba(255,255,255,.045);
+  color: #fff;
+}
+
+.newsroom-global-action:focus-visible {
+  outline: 2px solid var(--newsroom-rail-active);
+  outline-offset: 2px;
+}
+
+.newsroom-global-action__mark {
+  flex: 0 0 50px;
+  width: 50px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+}
+
+.newsroom-global-action__mark svg {
+  width: 17px;
+  height: 17px;
+}
+
+.newsroom-global-action__label {
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
+  white-space: nowrap;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 800;
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.newsroom-shell--expanded .newsroom-global-action__label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
 /* The global desk letters should orient, not consume the rail. */
 .newsroom-rail__nav {
   gap: 1px;
-  padding: 9px 8px;
+  padding: 8px;
 }
 
 .newsroom-rail__link {
-  min-height: 38px;
+  min-height: 36px;
   border-radius: 6px;
 }
 
@@ -30,7 +99,7 @@
 }
 
 .newsroom-rail__context-link {
-  min-height: 38px;
+  min-height: 36px;
 }
 
 /* The account remains the flexible bottom anchor. */
@@ -57,13 +126,21 @@
 }
 
 @media (max-height: 700px) {
-  .newsroom-rail__nav {
-    padding-top: 6px;
-    padding-bottom: 6px;
+  .newsroom-global-chassis {
+    padding-top: 5px;
+    padding-bottom: 5px;
   }
 
+  .newsroom-global-action,
+  .newsroom-global-action__mark,
   .newsroom-rail__link,
   .newsroom-rail__context-link {
-    min-height: 34px;
+    min-height: 32px;
+    height: 32px;
+  }
+
+  .newsroom-rail__nav {
+    padding-top: 5px;
+    padding-bottom: 5px;
   }
 }
