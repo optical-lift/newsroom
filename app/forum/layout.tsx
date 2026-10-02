@@ -1,5 +1,5 @@
 import NewsroomShell from "@/components/newsroom-shell";
-import { forumMemberDisplayName, requireForumMember } from "@/lib/auth/forum";
+import { forumMemberDisplayName, requireForumContext } from "@/lib/auth/forum";
 import { forumWorkspace } from "@/lib/newsroom";
 
 const links = [
@@ -8,12 +8,12 @@ const links = [
 ];
 
 export default async function ForumLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const claims = await requireForumMember();
+  const { claims, context } = await requireForumContext();
 
   return (
     <NewsroomShell
-      publication={forumWorkspace.publication}
-      organization={forumWorkspace.organization}
+      publication={context.publication.name}
+      organization={context.workspace.name}
       userName={forumMemberDisplayName(claims)}
       links={links}
     >

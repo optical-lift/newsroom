@@ -9,8 +9,6 @@ export type Desk = {
 };
 
 export const forumWorkspace = {
-  organization: "Forum Communications",
-  publication: "Mitchell Republic",
   workspaceSlug: "forum",
   desks: [
     {

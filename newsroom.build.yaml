@@ -1,0 +1,75 @@
+version: 1
+snapshot_date: "2026-10-02"
+finish_line:
+  - semantics
+  - database_kernel
+  - application
+  - release
+  - human_proof
+  - retirement
+
+build_spine:
+  governing_doc: docs/NEWSROOM_BUILD_SPINE_V1.md
+  one_finish_train_at_a_time: true
+  sequence:
+    - reality
+    - authority
+    - operation
+    - kernel
+    - projection
+    - encounter
+    - proof
+    - retirement
+
+active_tranche:
+  id: newsroom_institutional_root_v1
+  kind: structural_consolidation
+  reality_artery: "authenticated human -> Newsroom company workspace membership -> publication context -> authorized domain bindings -> coherent reporting encounters"
+  canonical_nouns:
+    - Newsroom Workspace
+    - Publication
+    - Workspace Membership
+    - Publication Access/Assignment
+    - Domain Binding
+    - Transcript Core Workspace
+  authority_owner: "Newsroom institutional membership governs product entry; each bound domain continues to govern its own data/access. Transcript Core membership may not substitute for whole-Newsroom authority."
+  kernel_dependencies:
+    - Supabase Auth
+    - Transcript Core workspace membership
+    - current /forum authenticated shell
+    - private Reporting Core
+  candidate_abstractions:
+    - bounded Newsroom domain binding after Transcripts plus another desk prove the same structure
+  proof_domains:
+    - Transcripts
+    - Municipal/Markets
+  read_membrane: newsroom_current_context_v1 staged
+  command_membrane: institutional administration not yet in reporter-facing scope
+  product_surface: /forum shell and all publication-scoped desks
+  transitional_carriers:
+    - FORUM_WORKSPACE_ID remains a transcript-client compatibility carrier only; route entry no longer treats it as institutional authority
+    - production still uses transcript_core membership as root gate until the staged migration/application checkpoint is released
+    - production still renders hard-coded Forum/Mitchell Republic context until the staged application checkpoint is released
+  retirement_target:
+    - Transcript Core membership as whole-Newsroom root authority
+    - hard-coded company/publication context in generic app shell
+    - FORUM_WORKSPACE_ID after the transcript studio itself accepts the governed domain binding
+  collision_scope:
+    - no per-desk competing membership systems
+    - no Reporting Core exposure without tenant/publication custody
+    - no generic enterprise RBAC without real proof
+
+queued_tranches:
+  - id: transcript_reporting_convergence_v1
+    reality_artery: "Transcript Core recording -> Reporting Source/revision/passages -> Reporting Topic relation -> transcript library Collection projection -> retirement of transcript-only collection/tag state"
+    blocked_by: newsroom_institutional_root_v1
+
+retirement_debt:
+  - newsroom.transcript_collections
+  - newsroom.transcript_collection_recordings
+  - newsroom.transcript_tags
+  - newsroom.transcript_recording_tags
+  - newsroom_create_transcript_collection
+  - newsroom_create_transcript_tag
+  - newsroom_set_recording_collection
+  - newsroom_set_recording_tag
