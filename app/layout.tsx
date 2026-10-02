@@ -4,6 +4,7 @@ import "./municipal.css";
 import "./newsroom-shell.css";
 import "./newsroom-workspace.css";
 import "./newsroom-context.css";
+import "./transcripts.css";
 
 export const metadata: Metadata = {
   title: "Optical Lift Newsroom",

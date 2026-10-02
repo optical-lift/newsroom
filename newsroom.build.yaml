@@ -21,48 +21,79 @@ build_spine:
     - proof
     - retirement
 
-active_tranche:
-  id: newsroom_institutional_root_v1
-  kind: structural_consolidation
-  reality_artery: "authenticated human -> Newsroom company workspace membership -> publication context -> authorized domain bindings -> coherent reporting encounters"
-  canonical_nouns:
-    - Newsroom Workspace
-    - Publication
-    - Workspace Membership
-    - Publication Access/Assignment
-    - Domain Binding
-    - Transcript Core Workspace
-  authority_owner: "Newsroom institutional membership governs product entry; each bound domain continues to govern its own data/access. Transcript Core membership may not substitute for whole-Newsroom authority."
-  kernel_dependencies:
-    - Supabase Auth
-    - Transcript Core workspace membership
-    - current /forum authenticated shell
-    - private Reporting Core
-  candidate_abstractions:
-    - bounded Newsroom domain binding after Transcripts plus another desk prove the same structure
-  proof_domains:
-    - Transcripts
-    - Municipal/Markets
-  read_membrane: newsroom_current_context_v1 staged
-  command_membrane: institutional administration not yet in reporter-facing scope
-  product_surface: /forum shell and all publication-scoped desks
-  transitional_carriers:
-    - FORUM_WORKSPACE_ID remains a transcript-client compatibility carrier only; route entry no longer treats it as institutional authority
-    - production still uses transcript_core membership as root gate until the staged migration/application checkpoint is released
-    - production still renders hard-coded Forum/Mitchell Republic context until the staged application checkpoint is released
-  retirement_target:
-    - Transcript Core membership as whole-Newsroom root authority
-    - hard-coded company/publication context in generic app shell
-    - FORUM_WORKSPACE_ID after the transcript studio itself accepts the governed domain binding
-  collision_scope:
-    - no per-desk competing membership systems
-    - no Reporting Core exposure without tenant/publication custody
-    - no generic enterprise RBAC without real proof
+completed_tranches:
+  - id: newsroom_institutional_root_v1
+    released_commit: 460815e38534a081b720d913f43ab99fcdf5a60d
+    production_proof: "Forum Newsroom loads under governed workspace/publication context and Transcripts opens through its explicit Transcript Core binding."
+    retirement:
+      - Transcript Core membership no longer governs whole-Newsroom entry.
+      - hard-coded Forum/Mitchell Republic labels no longer govern generic shell context.
 
-queued_tranches:
-  - id: transcript_reporting_convergence_v1
-    reality_artery: "Transcript Core recording -> Reporting Source/revision/passages -> Reporting Topic relation -> transcript library Collection projection -> retirement of transcript-only collection/tag state"
-    blocked_by: newsroom_institutional_root_v1
+active_tranche:
+  id: transcript_reporting_convergence_v1
+  kind: domain_convergence
+  reality_artery: "Transcript Core recording -> Reporting Source/revision/passages -> Reporting Topic relationship -> transcript-library Collection projection -> reporter retrieval -> retirement of transcript-only collection/tag state"
+  canonical_nouns:
+    - Transcript Core Recording
+    - Transcript Core Transcript Revision
+    - Transcript Core Segment
+    - Reporting Source
+    - Reporting Source Passage
+    - Reporting Topic
+    - Topic-to-Source Relationship
+    - Publication Reporting Scope
+  authority_owner: "Transcript Core owns original recordings, transcript revisions and alignment. Reporting Core owns downstream sources/passages/topics. Newsroom owns publication-scoped bridge identity and the Collection presentation label, not another collection truth."
+  kernel_dependencies:
+    - Newsroom Institutional Root v1
+    - Transcript Core recording/transcript/evidence kernels
+    - Reporting Core source/passages/topics kernels
+  candidate_abstractions:
+    - generic source-registration adapter only after another source carrier proves the same contract
+    - cross-source search only after at least Transcript Core plus one non-transcript source are registered
+  proof_domains:
+    - Transcript library
+    - selected Transcript workspace
+  read_membrane: newsroom_transcript_library_v2 staged
+  command_membrane:
+    - newsroom_sync_transcript_reporting_source_v1 staged
+    - newsroom_create_reporting_topic_v1 staged
+    - newsroom_set_recording_topic_v1 staged
+  product_surface:
+    - /forum/transcripts
+    - /forum/transcripts/[recordingId]
+  transitional_carriers:
+    - old transcript-only Collection/Tag tables and RPCs remain physically present until new path is released and human-proved
+    - legacy TranscriptStudio remains unused retirement debt until build/release proof confirms the replacement path
+    - FORUM_WORKSPACE_ID remains only in legacy/compatibility code; new transcript routes consume the governed publication binding
+  retirement_target:
+    - newsroom.transcript_collections
+    - newsroom.transcript_collection_recordings
+    - newsroom.transcript_tags
+    - newsroom.transcript_recording_tags
+    - newsroom_create_transcript_collection
+    - newsroom_create_transcript_tag
+    - newsroom_set_recording_collection
+    - newsroom_set_recording_tag
+    - newsroom_list_transcript_library
+    - legacy TranscriptStudio library shell
+  collision_scope:
+    - no copied audio bytes in Reporting Core
+    - source identity drift fails closed rather than rewriting preserved evidence
+    - one Reporting Topic is scoped to one publication in v1
+    - no flattened Transcript Core revision history
+    - no Topic relationship implying every passage concerns that Topic
+    - no second Person directory
+    - no generic durable Tags
+    - no global search before source registration is proved
+  finish_gates:
+    semantics: selected
+    database_kernel: released_pending_human_proof
+    application: released_pending_human_proof
+    release: production_2026-10-02
+    human_proof: pending
+    retirement: pending
+
+queued_tranches: []
 
 retirement_debt:
   - newsroom.transcript_collections
@@ -73,3 +104,5 @@ retirement_debt:
   - newsroom_create_transcript_tag
   - newsroom_set_recording_collection
   - newsroom_set_recording_tag
+  - newsroom_list_transcript_library
+  - components/transcript-studio.tsx after convergence proof

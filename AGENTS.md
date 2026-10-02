@@ -31,15 +31,17 @@ Implementation must not discover the product screen-by-screen. If a required int
 
 ## Current finish train
 
-The active structural tranche is `newsroom_institutional_root_v1`, recorded in `newsroom.build.yaml` and `docs/tranches/NEWSROOM_INSTITUTIONAL_ROOT_V1.md`.
+`newsroom_institutional_root_v1` is released and human-proved. Whole-Newsroom entry is governed by Newsroom workspace/publication membership; domain bindings remain bounded and each domain continues to own its own authority.
 
-Until it is complete:
+The active finish train is `transcript_reporting_convergence_v1`, recorded in `newsroom.build.yaml` and `docs/tranches/TRANSCRIPT_REPORTING_CONVERGENCE_V1.md`.
 
-- `transcript_core.workspace_memberships` remains a transitional pilot gate for `/forum`, not whole-Newsroom authority;
-- do not expose private Reporting Core through authenticated product APIs without lawful Newsroom workspace/publication custody;
-- do not promote transcript-only Collections/Tags into canonical organization.
+Until it is released and human-proved:
 
-The queued Transcript → Reporting convergence is defined in `docs/tranches/TRANSCRIPT_REPORTING_CONVERGENCE_V1.md`.
+- Transcript Core remains authoritative for recording/transcript access and revision history;
+- Reporting Core remains authoritative for sources/passages/topics;
+- user-facing Collections must project Reporting Topics through the governed convergence membrane;
+- transcript-only Collection/Tag tables and RPCs are transitional retirement debt and may not regain product authority;
+- do not add People/global search/review/quote features into this finish train.
 
 ## Evidence and reporting distinctions
 

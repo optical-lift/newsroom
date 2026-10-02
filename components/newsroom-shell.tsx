@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import SignOutButton from "@/components/sign-out-button";
 
@@ -22,7 +22,9 @@ type ContextAction =
   | { type: "scroll"; selector: string }
   | { type: "focus"; selector: string }
   | { type: "drawer"; key: string }
-  | { type: "transcript-panel"; panel: "library" | "tools"; sectionSelector?: string };
+  | { type: "navigate"; href: string }
+  | { type: "event"; name: string; detail?: Record<string, unknown> }
+  | { type: "transcript-panel"; panel: "tools"; sectionSelector?: string };
 
 type ContextItem = {
   key: string;
@@ -46,12 +48,22 @@ function initials(value: string) {
 }
 
 function contextItemsFor(pathname: string): ContextItem[] {
-  if (pathname.startsWith("/forum/transcripts")) {
+  if (pathname === "/forum/transcripts") {
     return [
-      { key: "recordings", label: "Recordings", action: { type: "transcript-panel", panel: "library" } },
-      { key: "transcript", label: "Transcript", action: { type: "scroll", selector: ".studio-document-header" }, default: true },
+      { key: "recent", label: "Recent", action: { type: "event", name: "newsroom:transcript-library-view", detail: { view: "recent" } }, default: true },
+      { key: "all", label: "All", action: { type: "event", name: "newsroom:transcript-library-view", detail: { view: "all" } } },
+      { key: "collections", label: "Collections", action: { type: "event", name: "newsroom:transcript-library-view", detail: { view: "collections" } } },
+      { key: "processing", label: "Processing", action: { type: "event", name: "newsroom:transcript-library-view", detail: { view: "processing" } } }
+    ];
+  }
+
+  if (pathname.startsWith("/forum/transcripts/")) {
+    return [
+      { key: "library", label: "Library", action: { type: "navigate", href: "/forum/transcripts" } },
+      { key: "transcript", label: "Transcript", action: { type: "scroll", selector: ".transcript-document-heading" }, default: true },
       { key: "find", label: "Find", action: { type: "focus", selector: ".studio-search input" } },
       { key: "speakers", label: "Speakers", action: { type: "transcript-panel", panel: "tools", sectionSelector: ".studio-inspector section:nth-of-type(2)" } },
+      { key: "organize", label: "Organize", action: { type: "event", name: "newsroom:transcript-organize" } },
       { key: "history", label: "History", action: { type: "transcript-panel", panel: "tools", sectionSelector: ".studio-inspector section:nth-of-type(4)" } }
     ];
   }
@@ -84,10 +96,11 @@ function contextItemsFor(pathname: string): ContextItem[] {
 
 export default function NewsroomShell({ publication, organization, userName, links, children }: NewsroomShellProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [expanded, setExpanded] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [contextActive, setContextActive] = useState<string | null>(null);
-  const [transcriptPanel, setTranscriptPanel] = useState<"library" | "tools" | null>(null);
+  const [transcriptPanel, setTranscriptPanel] = useState<"tools" | null>(null);
   const contextItems = useMemo(() => contextItemsFor(pathname), [pathname]);
 
   useEffect(() => {
@@ -96,7 +109,7 @@ export default function NewsroomShell({ publication, organization, userName, lin
   }, [contextItems]);
 
   useEffect(() => {
-    if (!pathname.startsWith("/forum/transcripts")) {
+    if (!pathname.startsWith("/forum/transcripts/")) {
       delete document.body.dataset.transcriptPanel;
       return;
     }
@@ -112,6 +125,16 @@ export default function NewsroomShell({ publication, organization, userName, lin
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [transcriptPanel]);
+
+  useEffect(() => {
+    if (pathname !== "/forum/transcripts") return;
+    const onLibraryViewState = (event: Event) => {
+      const view = (event as CustomEvent<{ view?: string }>).detail?.view;
+      if (view && ["recent", "all", "collections", "processing"].includes(view)) setContextActive(view);
+    };
+    window.addEventListener("newsroom:transcript-library-view-state", onLibraryViewState);
+    return () => window.removeEventListener("newsroom:transcript-library-view-state", onLibraryViewState);
+  }, [pathname]);
 
   function isActive(href: string) {
     if (href === "/forum") return pathname === href;
@@ -152,13 +175,23 @@ export default function NewsroomShell({ publication, organization, userName, lin
       return;
     }
 
-    const panel = action.panel;
-    const sectionSelector = action.sectionSelector;
-    setTranscriptPanel(panel);
-    if (panel === "tools" && sectionSelector) {
+    if (action.type === "navigate") {
+      setTranscriptPanel(null);
+      router.push(action.href);
+      return;
+    }
+
+    if (action.type === "event") {
+      setTranscriptPanel(null);
+      window.dispatchEvent(new CustomEvent(action.name, { detail: action.detail ?? {} }));
+      return;
+    }
+
+    setTranscriptPanel(action.panel);
+    if (action.sectionSelector) {
       window.setTimeout(() => {
         const inspector = document.querySelector<HTMLElement>(".studio-inspector");
-        const target = document.querySelector<HTMLElement>(sectionSelector);
+        const target = document.querySelector<HTMLElement>(action.sectionSelector!);
         if (inspector && target) inspector.scrollTo({ top: Math.max(0, target.offsetTop - 70), behavior: "smooth" });
       }, 40);
     }
