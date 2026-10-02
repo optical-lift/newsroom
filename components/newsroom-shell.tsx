@@ -127,32 +127,35 @@ export default function NewsroomShell({ publication, organization, userName, lin
   function runContext(item: ContextItem) {
     setContextActive(item.key);
     setAccountOpen(false);
+    const action = item.action;
 
-    if (item.action.type === "scroll") {
+    if (action.type === "scroll") {
       setTranscriptPanel(null);
-      scrollToSelector(item.action.selector);
+      scrollToSelector(action.selector);
       return;
     }
 
-    if (item.action.type === "focus") {
+    if (action.type === "focus") {
       setTranscriptPanel(null);
+      const selector = action.selector;
       window.requestAnimationFrame(() => {
-        const target = document.querySelector<HTMLInputElement>(item.action.selector);
+        const target = document.querySelector<HTMLInputElement>(selector);
         target?.scrollIntoView({ behavior: "smooth", block: "center" });
         target?.focus();
       });
       return;
     }
 
-    if (item.action.type === "drawer") {
+    if (action.type === "drawer") {
       setTranscriptPanel(null);
-      window.dispatchEvent(new CustomEvent("newsroom:open-drawer", { detail: { key: item.action.key } }));
+      window.dispatchEvent(new CustomEvent("newsroom:open-drawer", { detail: { key: action.key } }));
       return;
     }
 
-    setTranscriptPanel(item.action.panel);
-    if (item.action.panel === "tools" && item.action.sectionSelector) {
-      const sectionSelector = item.action.sectionSelector;
+    const panel = action.panel;
+    const sectionSelector = action.sectionSelector;
+    setTranscriptPanel(panel);
+    if (panel === "tools" && sectionSelector) {
       window.setTimeout(() => {
         const inspector = document.querySelector<HTMLElement>(".studio-inspector");
         const target = document.querySelector<HTMLElement>(sectionSelector);
