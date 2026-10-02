@@ -1,0 +1,23 @@
+/* Keep the orientation rail anchored to the viewport while the reporting surface scrolls. */
+
+.newsroom-rail {
+  position: fixed;
+  inset: 0 auto 0 0;
+  width: var(--newsroom-rail-width);
+  height: auto;
+}
+
+.newsroom-shell--expanded .newsroom-rail {
+  width: var(--newsroom-rail-expanded-width);
+}
+
+.newsroom-shell .workspace-main {
+  grid-column: 2;
+}
+
+@media (max-width: 620px) {
+  .newsroom-rail,
+  .newsroom-shell--expanded .newsroom-rail {
+    width: 52px;
+  }
+}
