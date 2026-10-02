@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 
 type ReportingDrawerProps = {
   label: string;
@@ -9,6 +9,10 @@ type ReportingDrawerProps = {
   children: ReactNode;
   variant?: "secondary" | "quiet";
 };
+
+function contextKeyFor(title: string) {
+  return title.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+}
 
 export default function ReportingDrawer({
   label,
@@ -20,6 +24,16 @@ export default function ReportingDrawer({
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const drawerId = `${titleId}-drawer`;
+  const contextKey = useMemo(() => contextKeyFor(title), [title]);
+
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const detail = (event as CustomEvent<{ key?: string }>).detail;
+      if (detail?.key === contextKey) setOpen(true);
+    };
+    window.addEventListener("newsroom:open-drawer", onOpen);
+    return () => window.removeEventListener("newsroom:open-drawer", onOpen);
+  }, [contextKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -34,7 +48,7 @@ export default function ReportingDrawer({
     <>
       <button
         type="button"
-        className={`newsroom-action newsroom-action--${variant}`}
+        className={`newsroom-action newsroom-action--${variant} reporting-drawer-trigger`}
         aria-expanded={open}
         aria-controls={drawerId}
         onClick={() => setOpen(true)}

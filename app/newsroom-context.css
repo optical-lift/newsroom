@@ -1,0 +1,369 @@
+/* Context rail and document-first working surfaces. */
+
+.newsroom-rail__context {
+  display: grid;
+  gap: 2px;
+  margin: 2px 9px 0;
+  padding: 13px 0 10px;
+  border-top: 1px solid var(--newsroom-rail-rule);
+}
+
+.newsroom-rail__context-heading {
+  display: block;
+  height: 0;
+  margin: 0;
+  overflow: hidden;
+  opacity: 0;
+  color: #777f7a;
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: opacity .12s ease;
+}
+
+.newsroom-shell--expanded .newsroom-rail__context-heading {
+  height: auto;
+  margin: 0 10px 7px;
+  opacity: 1;
+}
+
+.newsroom-rail__context-link {
+  position: relative;
+  width: 100%;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #878f89;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.newsroom-rail__context-link:hover {
+  background: rgba(255,255,255,.04);
+  color: #d7dcd8;
+}
+
+.newsroom-rail__context-link[data-active="true"] {
+  color: #f2eee6;
+}
+
+.newsroom-rail__context-link[data-active="true"]::before {
+  content: "";
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  width: 2px;
+  height: 13px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: rgba(234, 217, 120, .82);
+}
+
+.newsroom-rail__context-mark {
+  flex: 0 0 50px;
+  width: 50px;
+  display: grid;
+  place-items: center;
+  color: #727a75;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.newsroom-rail__context-link[data-active="true"] .newsroom-rail__context-mark {
+  color: var(--newsroom-rail-active);
+}
+
+.newsroom-rail__context-label {
+  min-width: 0;
+  opacity: 0;
+  transform: translateX(-4px);
+  white-space: nowrap;
+  pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+}
+
+.newsroom-shell--expanded .newsroom-rail__context-label {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.newsroom-rail__context-link:focus-visible {
+  outline: 2px solid var(--newsroom-rail-active);
+  outline-offset: 1px;
+}
+
+/* Context drawers now live in the rail rather than duplicating header controls. */
+.newsroom-shell .markets-header .reporting-drawer-trigger,
+.newsroom-shell .municipal-header .reporting-drawer-trigger,
+.newsroom-shell .legal-header .reporting-drawer-trigger {
+  display: none !important;
+}
+
+.newsroom-context-scrim {
+  position: fixed;
+  z-index: 80;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--newsroom-rail-width);
+  padding: 0;
+  border: 0;
+  background: rgba(18, 20, 18, .18);
+  cursor: default;
+}
+
+.newsroom-shell--expanded .newsroom-context-scrim {
+  left: var(--newsroom-rail-expanded-width);
+}
+
+.newsroom-context-close {
+  position: fixed;
+  z-index: 115;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #fffef9;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.newsroom-context-close[data-panel="tools"] {
+  top: 14px;
+  right: 14px;
+}
+
+.newsroom-context-close[data-panel="library"] {
+  top: 14px;
+  left: calc(var(--newsroom-rail-width) + 282px);
+}
+
+.newsroom-shell--expanded .newsroom-context-close[data-panel="library"] {
+  left: calc(var(--newsroom-rail-expanded-width) + 282px);
+}
+
+.newsroom-context-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Transcript is the page, not an application card sitting inside the page. */
+.transcript-tools-control {
+  display: none !important;
+}
+
+.newsroom-shell .transcript-header {
+  margin-bottom: 0 !important;
+  padding-bottom: 12px !important;
+  padding-right: 0 !important;
+}
+
+.newsroom-shell .transcript-header h1 {
+  font-size: clamp(25px, 2.2vw, 31px) !important;
+}
+
+.newsroom-shell .transcript-studio {
+  display: block !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.newsroom-shell .studio-document {
+  min-width: 0;
+  background: transparent !important;
+}
+
+.newsroom-shell .studio-library,
+.newsroom-shell .studio-inspector {
+  display: none !important;
+}
+
+body[data-transcript-panel="library"] .newsroom-shell .studio-library {
+  display: block !important;
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  bottom: 0;
+  left: var(--newsroom-rail-width);
+  width: 330px;
+  overflow-y: auto;
+  border: 0 !important;
+  border-right: 1px solid var(--line) !important;
+  background: #f6f5f0 !important;
+  box-shadow: 14px 0 34px rgba(22, 32, 27, .11);
+}
+
+body[data-transcript-panel="library"] .newsroom-shell--expanded .studio-library {
+  left: var(--newsroom-rail-expanded-width);
+}
+
+body[data-transcript-panel="tools"] .newsroom-shell .studio-inspector {
+  display: block !important;
+  position: fixed;
+  z-index: 100;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(380px, calc(100vw - 76px));
+  overflow-y: auto;
+  padding: 72px 20px 32px !important;
+  border: 0 !important;
+  border-left: 1px solid var(--line) !important;
+  background: #f8f7f2 !important;
+  box-shadow: -16px 0 38px rgba(22, 32, 27, .12);
+}
+
+body[data-transcript-panel="tools"] .newsroom-shell .studio-inspector::before {
+  content: "Transcript details";
+  position: absolute;
+  top: 22px;
+  left: 20px;
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.newsroom-shell .studio-document-header {
+  padding: 20px 0 16px !important;
+  border-bottom: 1px solid var(--newsroom-rule);
+}
+
+.newsroom-shell .studio-document-header .eyebrow {
+  display: none;
+}
+
+.newsroom-shell .studio-document-header h2 {
+  font-size: clamp(30px, 3.1vw, 42px) !important;
+  letter-spacing: -.025em;
+}
+
+.newsroom-shell .studio-document-header p:last-child {
+  margin-top: 5px !important;
+}
+
+.newsroom-shell .studio-player {
+  padding: 9px 0 10px !important;
+  border-top: 0 !important;
+  background: rgba(245, 244, 239, .96) !important;
+}
+
+.newsroom-shell .studio-player audio {
+  height: 38px !important;
+}
+
+.newsroom-shell .studio-editor-toolbar {
+  top: 75px !important;
+  padding: 9px 0 !important;
+  background: rgba(245, 244, 239, .97) !important;
+}
+
+.newsroom-shell .studio-editor-meta {
+  padding: 9px 0 !important;
+}
+
+.newsroom-shell .studio-clean-view,
+.newsroom-shell .studio-raw-view {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: 8px 0 80px !important;
+}
+
+.newsroom-shell .studio-paragraph,
+.newsroom-shell .studio-segment {
+  grid-template-columns: 64px minmax(0, 1fr) !important;
+  gap: 18px !important;
+  padding: 18px 0 !important;
+}
+
+.newsroom-shell .studio-paragraph p {
+  font-size: 15.5px !important;
+  line-height: 1.72 !important;
+}
+
+.newsroom-shell .studio-time {
+  background: #e7eee7 !important;
+}
+
+.newsroom-shell .studio-source-hash,
+.newsroom-shell .studio-clean-note {
+  display: none !important;
+}
+
+/* The old inspector opening convention is retired in favor of the context rail. */
+body[data-transcript-tools="open"] .newsroom-shell .studio-inspector {
+  display: none !important;
+}
+
+@media (max-width: 900px) {
+  .newsroom-rail__context-mark {
+    flex-basis: 46px;
+    width: 46px;
+  }
+}
+
+@media (max-width: 760px) {
+  .newsroom-context-scrim {
+    left: var(--newsroom-rail-width);
+  }
+
+  body[data-transcript-panel="library"] .newsroom-shell .studio-library,
+  body[data-transcript-panel="tools"] .newsroom-shell .studio-inspector {
+    width: calc(100vw - var(--newsroom-rail-width));
+  }
+
+  .newsroom-context-close[data-panel="library"] {
+    left: auto !important;
+    right: 14px;
+  }
+
+  .newsroom-shell .studio-document-header {
+    padding-top: 16px !important;
+  }
+
+  .newsroom-shell .studio-editor-toolbar {
+    position: relative !important;
+    top: auto !important;
+  }
+}
+
+@media (max-width: 620px) {
+  .newsroom-rail__context {
+    margin-inline: 5px;
+  }
+
+  .newsroom-rail__context-heading,
+  .newsroom-rail__context-label {
+    display: none !important;
+  }
+
+  .newsroom-rail__context-mark {
+    flex-basis: 40px;
+    width: 40px;
+  }
+
+  .newsroom-rail__context-link {
+    justify-content: center;
+  }
+}

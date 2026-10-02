@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import SignOutButton from "@/components/sign-out-button";
-import TranscriptToolsToggle from "@/components/transcript-tools-toggle";
 
 type NewsroomShellLink = {
   href: string;
@@ -17,6 +16,19 @@ type NewsroomShellProps = {
   userName: string;
   links: NewsroomShellLink[];
   children: ReactNode;
+};
+
+type ContextAction =
+  | { type: "scroll"; selector: string }
+  | { type: "focus"; selector: string }
+  | { type: "drawer"; key: string }
+  | { type: "transcript-panel"; panel: "library" | "tools"; sectionSelector?: string };
+
+type ContextItem = {
+  key: string;
+  label: string;
+  action: ContextAction;
+  default?: boolean;
 };
 
 function markFor(label: string) {
@@ -33,14 +45,120 @@ function initials(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "R";
 }
 
+function contextItemsFor(pathname: string): ContextItem[] {
+  if (pathname.startsWith("/forum/transcripts")) {
+    return [
+      { key: "recordings", label: "Recordings", action: { type: "transcript-panel", panel: "library" } },
+      { key: "transcript", label: "Transcript", action: { type: "scroll", selector: ".studio-document-header" }, default: true },
+      { key: "find", label: "Find", action: { type: "focus", selector: ".studio-search input" } },
+      { key: "speakers", label: "Speakers", action: { type: "transcript-panel", panel: "tools", sectionSelector: ".studio-inspector section:nth-of-type(2)" } },
+      { key: "history", label: "History", action: { type: "transcript-panel", panel: "tools", sectionSelector: ".studio-inspector section:nth-of-type(4)" } }
+    ];
+  }
+
+  if (pathname.startsWith("/forum/municipal")) {
+    return [
+      { key: "meeting", label: "Meeting", action: { type: "scroll", selector: ".meeting-hero" }, default: true },
+      { key: "agenda", label: "Agenda", action: { type: "scroll", selector: ".municipal-columns .record-panel" } },
+      { key: "minutes", label: "Minutes", action: { type: "scroll", selector: ".minutes-panel" } },
+      { key: "sources", label: "Sources", action: { type: "drawer", key: "meeting-sources" } }
+    ];
+  }
+
+  if (pathname.startsWith("/forum/markets")) {
+    return [
+      { key: "output", label: "Output", action: { type: "scroll", selector: ".markets-card" }, default: true },
+      { key: "sources", label: "Sources", action: { type: "drawer", key: "market-sources" } }
+    ];
+  }
+
+  if (pathname.startsWith("/forum/legal-notices")) {
+    return [
+      { key: "notices", label: "Notices", action: { type: "scroll", selector: ".legal-list" }, default: true },
+      { key: "status", label: "Status", action: { type: "drawer", key: "legal-notice-queue" } }
+    ];
+  }
+
+  return [];
+}
+
 export default function NewsroomShell({ publication, organization, userName, links, children }: NewsroomShellProps) {
   const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [contextActive, setContextActive] = useState<string | null>(null);
+  const [transcriptPanel, setTranscriptPanel] = useState<"library" | "tools" | null>(null);
+  const contextItems = useMemo(() => contextItemsFor(pathname), [pathname]);
+
+  useEffect(() => {
+    setContextActive(contextItems.find((item) => item.default)?.key ?? contextItems[0]?.key ?? null);
+    setTranscriptPanel(null);
+  }, [contextItems]);
+
+  useEffect(() => {
+    if (!pathname.startsWith("/forum/transcripts")) {
+      delete document.body.dataset.transcriptPanel;
+      return;
+    }
+    document.body.dataset.transcriptPanel = transcriptPanel ?? "closed";
+    return () => { delete document.body.dataset.transcriptPanel; };
+  }, [pathname, transcriptPanel]);
+
+  useEffect(() => {
+    if (!transcriptPanel) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setTranscriptPanel(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [transcriptPanel]);
 
   function isActive(href: string) {
     if (href === "/forum") return pathname === href;
     return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
+  function scrollToSelector(selector: string) {
+    window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function runContext(item: ContextItem) {
+    setContextActive(item.key);
+    setAccountOpen(false);
+
+    if (item.action.type === "scroll") {
+      setTranscriptPanel(null);
+      scrollToSelector(item.action.selector);
+      return;
+    }
+
+    if (item.action.type === "focus") {
+      setTranscriptPanel(null);
+      window.requestAnimationFrame(() => {
+        const target = document.querySelector<HTMLInputElement>(item.action.selector);
+        target?.scrollIntoView({ behavior: "smooth", block: "center" });
+        target?.focus();
+      });
+      return;
+    }
+
+    if (item.action.type === "drawer") {
+      setTranscriptPanel(null);
+      window.dispatchEvent(new CustomEvent("newsroom:open-drawer", { detail: { key: item.action.key } }));
+      return;
+    }
+
+    setTranscriptPanel(item.action.panel);
+    if (item.action.panel === "tools" && item.action.sectionSelector) {
+      const sectionSelector = item.action.sectionSelector;
+      window.setTimeout(() => {
+        const inspector = document.querySelector<HTMLElement>(".studio-inspector");
+        const target = document.querySelector<HTMLElement>(sectionSelector);
+        if (inspector && target) inspector.scrollTo({ top: Math.max(0, target.offsetTop - 70), behavior: "smooth" });
+      }, 40);
+    }
   }
 
   return (
@@ -81,10 +199,29 @@ export default function NewsroomShell({ publication, organization, userName, lin
           })}
         </nav>
 
+        {contextItems.length ? (
+          <nav className="newsroom-rail__context" aria-label="On this page">
+            <span className="newsroom-rail__context-heading">On this page</span>
+            {contextItems.map((item, index) => (
+              <button
+                type="button"
+                key={item.key}
+                className="newsroom-rail__context-link"
+                data-active={contextActive === item.key ? "true" : "false"}
+                title={expanded ? undefined : item.label}
+                onClick={() => runContext(item)}
+              >
+                <span className="newsroom-rail__context-mark" aria-hidden="true">{index + 1}</span>
+                <span className="newsroom-rail__context-label">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        ) : null}
+
         <div className="newsroom-rail__account-zone">
           {accountOpen ? (
             <div className="newsroom-account-panel" role="dialog" aria-label="Newsroom account">
-              <span className="newsrom-account-panel__eyebrow">Signed in</span>
+              <span className="newsroom-account-panel__eyebrow">Signed in</span>
               <strong>{userName}</strong>
               <span>{publication}</span>
               <span>{organization}</span>
@@ -105,10 +242,14 @@ export default function NewsroomShell({ publication, organization, userName, lin
         </div>
       </aside>
 
-      <main className="workspace-main">
-        {pathname.startsWith("/forum/transcripts") ? <TranscriptToolsToggle /> : null}
-        {children}
-      </main>
+      {transcriptPanel ? (
+        <>
+          <button type="button" className="newsroom-context-scrim" aria-label="Close transcript panel" onClick={() => setTranscriptPanel(null)} />
+          <button type="button" className="newsroom-context-close" data-panel={transcriptPanel} aria-label="Close transcript panel" onClick={() => setTranscriptPanel(null)}>×</button>
+        </>
+      ) : null}
+
+      <main className="workspace-main">{children}</main>
     </div>
   );
 }
