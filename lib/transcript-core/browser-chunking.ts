@@ -47,17 +47,25 @@ export async function* prepareTranscriptionChunks(
     await ffmpeg.mount(FFFSType.WORKERFS, { files: [file] }, mountPoint);
 
     onProgress?.(0.04, "Reading recording duration");
-    const probeExit = await ffmpeg.ffprobe([
+    // ffmpeg.wasm/core 0.12.10 can return -1 from ffprobe even when the probe
+    // itself succeeded and wrote the requested output file. Treat the output
+    // file as authoritative and only fail when its duration is actually unreadable.
+    await ffmpeg.ffprobe([
       "-v", "error",
       "-show_entries", "format=duration",
       "-of", "default=noprint_wrappers=1:nokey=1",
       inputPath,
       "-o", "duration.txt"
     ]);
-    if (probeExit !== 0) throw new Error("Could not read the recording duration.");
 
-    const rawDuration = await ffmpeg.readFile("duration.txt", "utf8");
-    const durationSeconds = Number(String(rawDuration).trim());
+    let rawDuration: string;
+    try {
+      rawDuration = String(await ffmpeg.readFile("duration.txt", "utf8"));
+    } catch {
+      throw new Error("Could not read the recording duration.");
+    }
+
+    const durationSeconds = Number(rawDuration.trim());
     if (!Number.isFinite(durationSeconds) || durationSeconds <= 0) {
       throw new Error("The selected recording has no readable audio duration.");
     }
