@@ -16,14 +16,7 @@ import {
   prepareTranscriptionChunks
 } from "@/lib/transcript-core/browser-chunking";
 
-type ProcessingStatus =
-  | "queued"
-  | "processing"
-  | "partially_processed"
-  | "ready"
-  | "failed_retryable"
-  | "failed_terminal"
-  | null;
+type ProcessingStatus = "queued" | "processing" | "partially_processed" | "ready" | "failed_retryable" | "failed_terminal" | null;
 
 type RecordingListItem = {
   id: string;
@@ -32,14 +25,8 @@ type RecordingListItem = {
   createdAt: string;
   transcriptId: string | null;
   currentRevisionId: string | null;
-  speakerAnalysisRunId: string | null;
   processingJobId: string | null;
   processingStatus: ProcessingStatus;
-  processingAttempt: number | null;
-  processingErrorCode: string | null;
-  processingErrorMessage: string | null;
-  provider: string | null;
-  providerModel: string | null;
 };
 
 type TranscriptSegmentDetail = {
@@ -92,8 +79,6 @@ type ChunkProgress = {
   processingChunks: number;
   retryableChunks: number;
   terminalChunks: number;
-  errorCode: string | null;
-  errorMessage: string | null;
 };
 
 type EditorState = {
@@ -104,18 +89,59 @@ type EditorState = {
   updatedAt: string | null;
 };
 
-type EffectiveSegment = TranscriptSegmentDetail & {
-  effectiveText: string;
-  effectiveSpeaker: string;
-};
+type EffectiveSegment = TranscriptSegmentDetail & { effectiveText: string };
 
-type CleanParagraph = {
+type EvidenceSpeaker = {
+  clusterId: string;
+  providerSpeakerKey: string;
+  displayName: string | null;
+  assignmentBasis: string | null;
+} | null;
+
+type EvidenceUtterance = {
   id: string;
+  sequence: number;
+  speakerClusterId: string | null;
   startMs: number;
   endMs: number;
   text: string;
-  speaker: string;
-  segmentIds: string[];
+  transcriptSegmentIds: string[];
+  speaker: EvidenceSpeaker;
+};
+
+type SpeakerCluster = {
+  id: string;
+  providerSpeakerKey: string;
+  displayName: string | null;
+  assignmentBasis: string | null;
+  rangeCount: number;
+};
+
+type EvidenceState = {
+  revisionId: string | null;
+  analysisRunId: string | null;
+  analysisProvider: string | null;
+  analysisProviderModel: string | null;
+  utterances: EvidenceUtterance[];
+  speakerClusters: SpeakerCluster[];
+};
+
+type RevisionHistoryItem = {
+  id: string;
+  ordinal: number;
+  revisionKind: "machine" | "human";
+  provider: string | null;
+  providerModel: string | null;
+  createdAt: string;
+  isCurrent: boolean;
+};
+
+type UsageState = {
+  audioSeconds: number;
+  requestCount: number;
+  estimatedPaidEquivalentUsd: number;
+  providers: Array<{ provider: string; model: string | null }>;
+  latestAt: string | null;
 };
 
 const SOURCE_BUCKET = "transcript-core-observed-originals";
@@ -137,10 +163,7 @@ function formatBytes(value: number) {
   const units = ["B", "KB", "MB", "GB"];
   let size = value;
   let unit = 0;
-  while (size >= 1024 && unit < units.length - 1) {
-    size /= 1024;
-    unit += 1;
-  }
+  while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit += 1; }
   return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
@@ -152,6 +175,11 @@ function formatClock(ms: number) {
   return hours > 0
     ? `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`
     : `${minutes}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatDuration(seconds: number) {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
+  return formatClock(seconds * 1000);
 }
 
 function processingLabel(status: ProcessingStatus, transcriptReady: boolean) {
@@ -167,54 +195,12 @@ function isActiveProcessing(status: ProcessingStatus) {
   return status === "queued" || status === "processing" || status === "partially_processed";
 }
 
-function buildCleanParagraphs(segments: EffectiveSegment[]) {
-  const paragraphs: CleanParagraph[] = [];
-  let current: CleanParagraph | null = null;
-  const flush = () => {
-    if (current && current.text.trim()) paragraphs.push(current);
-    current = null;
-  };
-
-  for (const segment of segments) {
-    const text = segment.effectiveText.trim();
-    if (!text) continue;
-    const speaker = segment.effectiveSpeaker.trim();
-    const previousGap = current ? segment.startMs - current.endMs : 0;
-    const speakerChanged = Boolean(current && speaker && current.speaker && speaker !== current.speaker);
-    const tooLong = Boolean(current && current.text.length >= 480);
-    const longGap = Boolean(current && previousGap > 1800);
-
-    if (!current || speakerChanged || tooLong || longGap) {
-      flush();
-      current = {
-        id: segment.id,
-        startMs: segment.startMs,
-        endMs: segment.endMs,
-        text,
-        speaker,
-        segmentIds: [segment.id]
-      };
-      continue;
-    }
-
-    current.text = `${current.text} ${text}`.replace(/\s+/g, " ").trim();
-    current.endMs = segment.endMs;
-    current.segmentIds.push(segment.id);
-    if (!current.speaker && speaker) current.speaker = speaker;
-    if (current.text.length >= 240 && /[.!?][\"')\]]?$/.test(text)) flush();
-  }
-
-  flush();
-  return paragraphs;
-}
-
 async function hashBlobSha256(blob: Blob, onProgress?: (fraction: number) => void) {
   const hasher = await createSHA256();
   hasher.init();
   for (let offset = 0; offset < blob.size; offset += HASH_CHUNK_BYTES) {
     const end = Math.min(blob.size, offset + HASH_CHUNK_BYTES);
-    const bytes = new Uint8Array(await blob.slice(offset, end).arrayBuffer());
-    hasher.update(bytes);
+    hasher.update(new Uint8Array(await blob.slice(offset, end).arrayBuffer()));
     onProgress?.(blob.size > 0 ? end / blob.size : 1);
   }
   return hasher.digest("hex");
@@ -230,15 +216,11 @@ async function resumableUpload(input: {
 }) {
   const projectRef = new URL(NEWSROOM_SUPABASE_URL).hostname.split(".")[0];
   const endpoint = `https://${projectRef}.storage.supabase.co/storage/v1/upload/resumable`;
-
   await new Promise<void>((resolve, reject) => {
     const upload = new tus.Upload(input.body, {
       endpoint,
       retryDelays: [0, 3000, 5000, 10000, 20000],
-      headers: {
-        authorization: `Bearer ${input.accessToken}`,
-        apikey: NEWSROOM_SUPABASE_PUBLISHABLE_KEY
-      },
+      headers: { authorization: `Bearer ${input.accessToken}`, apikey: NEWSROOM_SUPABASE_PUBLISHABLE_KEY },
       uploadDataDuringCreation: true,
       removeFingerprintOnSuccess: true,
       chunkSize: TUS_CHUNK_BYTES,
@@ -249,18 +231,13 @@ async function resumableUpload(input: {
         cacheControl: "3600"
       },
       onError(error: Error) { reject(error); },
-      onProgress(bytesUploaded: number, bytesTotal: number) {
-        input.onProgress?.(bytesTotal > 0 ? bytesUploaded / bytesTotal : 0);
-      },
+      onProgress(bytesUploaded: number, bytesTotal: number) { input.onProgress?.(bytesTotal > 0 ? bytesUploaded / bytesTotal : 0); },
       onSuccess() { resolve(); }
     });
-
-    upload.findPreviousUploads()
-      .then((previousUploads) => {
-        if (previousUploads.length > 0) upload.resumeFromPreviousUpload(previousUploads[0]);
-        upload.start();
-      })
-      .catch(reject);
+    upload.findPreviousUploads().then((previousUploads) => {
+      if (previousUploads.length > 0) upload.resumeFromPreviousUpload(previousUploads[0]);
+      upload.start();
+    }).catch(reject);
   });
 }
 
@@ -295,6 +272,39 @@ async function getEditorState(client: SupabaseClient, transcriptId: string) {
   } satisfies EditorState;
 }
 
+async function getEvidence(client: SupabaseClient, recordingId: string) {
+  const { data, error } = await client.rpc("newsroom_get_transcript_evidence", { p_recording_id: recordingId });
+  if (error) throw error;
+  const raw = (data ?? {}) as Partial<EvidenceState>;
+  return {
+    revisionId: raw.revisionId ?? null,
+    analysisRunId: raw.analysisRunId ?? null,
+    analysisProvider: raw.analysisProvider ?? null,
+    analysisProviderModel: raw.analysisProviderModel ?? null,
+    utterances: Array.isArray(raw.utterances) ? raw.utterances : [],
+    speakerClusters: Array.isArray(raw.speakerClusters) ? raw.speakerClusters : []
+  } satisfies EvidenceState;
+}
+
+async function getUsage(client: SupabaseClient, recordingId: string) {
+  const { data, error } = await client.rpc("newsroom_get_transcript_usage", { p_recording_id: recordingId });
+  if (error) throw error;
+  const raw = (data ?? {}) as Partial<UsageState>;
+  return {
+    audioSeconds: Number(raw.audioSeconds ?? 0),
+    requestCount: Number(raw.requestCount ?? 0),
+    estimatedPaidEquivalentUsd: Number(raw.estimatedPaidEquivalentUsd ?? 0),
+    providers: Array.isArray(raw.providers) ? raw.providers : [],
+    latestAt: raw.latestAt ?? null
+  } satisfies UsageState;
+}
+
+async function getRevisionHistory(client: SupabaseClient, transcriptId: string) {
+  const { data, error } = await client.rpc("newsroom_get_transcript_revision_history", { p_transcript_id: transcriptId });
+  if (error) throw error;
+  return (Array.isArray(data) ? data : []) as RevisionHistoryItem[];
+}
+
 export default function TranscriptStudio() {
   const client = useMemo(() => getNewsroomBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(null);
@@ -315,12 +325,18 @@ export default function TranscriptStudio() {
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [textOverrides, setTextOverrides] = useState<Record<string, string>>({});
-  const [speakerOverrides, setSpeakerOverrides] = useState<Record<string, string>>({});
+  const [legacySpeakerOverrides, setLegacySpeakerOverrides] = useState<Record<string, string>>({});
   const [editorBaseRevisionId, setEditorBaseRevisionId] = useState<string | null>(null);
   const [editorTranscriptId, setEditorTranscriptId] = useState<string | null>(null);
   const [editorDirty, setEditorDirty] = useState(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [checkpointBusy, setCheckpointBusy] = useState(false);
   const [playbackRate, setPlaybackRate] = useState(1);
+  const [playbackMs, setPlaybackMs] = useState(0);
+  const [evidence, setEvidence] = useState<EvidenceState>({ revisionId: null, analysisRunId: null, analysisProvider: null, analysisProviderModel: null, utterances: [], speakerClusters: [] });
+  const [usage, setUsage] = useState<UsageState>({ audioSeconds: 0, requestCount: 0, estimatedPaidEquivalentUsd: 0, providers: [], latestAt: null });
+  const [revisionHistory, setRevisionHistory] = useState<RevisionHistoryItem[]>([]);
+  const [speakerNames, setSpeakerNames] = useState<Record<string, string>>({});
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const segmentRefs = useRef<Record<string, HTMLElement | null>>({});
 
@@ -335,9 +351,7 @@ export default function TranscriptStudio() {
     if (detail.processingJob?.id) {
       try { setSelectedProgress(await getChunkProgress(client, detail.processingJob.id)); }
       catch { setSelectedProgress(null); }
-    } else {
-      setSelectedProgress(null);
-    }
+    } else setSelectedProgress(null);
     return detail;
   }, [client]);
 
@@ -347,7 +361,7 @@ export default function TranscriptStudio() {
       setEditorTranscriptId(null);
       setEditorBaseRevisionId(null);
       setTextOverrides({});
-      setSpeakerOverrides({});
+      setLegacySpeakerOverrides({});
       setEditorDirty(false);
       setSaveState("idle");
       return;
@@ -356,9 +370,27 @@ export default function TranscriptStudio() {
     setEditorTranscriptId(transcript.id);
     setEditorBaseRevisionId(transcript.currentRevisionId);
     setTextOverrides(state.textOverrides);
-    setSpeakerOverrides(state.speakerOverrides);
+    setLegacySpeakerOverrides(state.speakerOverrides);
     setEditorDirty(false);
     setSaveState(state.updatedAt ? "saved" : "idle");
+  }, [client]);
+
+  const loadEvidence = useCallback(async (detail: RecordingDetail) => {
+    if (!detail.transcript?.id || !detail.transcript.currentRevisionId) {
+      setEvidence({ revisionId: null, analysisRunId: null, analysisProvider: null, analysisProviderModel: null, utterances: [], speakerClusters: [] });
+      setUsage({ audioSeconds: 0, requestCount: 0, estimatedPaidEquivalentUsd: 0, providers: [], latestAt: null });
+      setRevisionHistory([]);
+      return;
+    }
+    const [nextEvidence, nextUsage, nextHistory] = await Promise.all([
+      getEvidence(client, detail.id),
+      getUsage(client, detail.id),
+      getRevisionHistory(client, detail.transcript.id)
+    ]);
+    setEvidence(nextEvidence);
+    setUsage(nextUsage);
+    setRevisionHistory(nextHistory);
+    setSpeakerNames(Object.fromEntries(nextEvidence.speakerClusters.map((cluster) => [cluster.id, cluster.displayName ?? cluster.providerSpeakerKey])));
   }, [client]);
 
   useEffect(() => {
@@ -370,23 +402,13 @@ export default function TranscriptStudio() {
       setSessionLoaded(true);
       if (data.session) listRecordings(client).then((rows) => alive && setRecordings(rows)).catch((caught) => alive && setError(asMessage(caught)));
     });
-
     const { data: listener } = client.auth.onAuthStateChange((_event: string, nextSession: Session | null) => {
       setSession(nextSession);
       setSessionLoaded(true);
-      if (!nextSession) {
-        setRecordings([]);
-        setSelected(null);
-        setPlaybackUrl(null);
-        return;
-      }
+      if (!nextSession) { setRecordings([]); setSelected(null); setPlaybackUrl(null); return; }
       listRecordings(client).then(setRecordings).catch((caught) => setError(asMessage(caught)));
     });
-
-    return () => {
-      alive = false;
-      listener.subscription.unsubscribe();
-    };
+    return () => { alive = false; listener.subscription.unsubscribe(); };
   }, [client]);
 
   useEffect(() => {
@@ -395,9 +417,7 @@ export default function TranscriptStudio() {
   }, [recordings, selected, session]);
 
   useEffect(() => {
-    if (!session) return;
-    const hasActiveJob = recordings.some((recording) => isActiveProcessing(recording.processingStatus));
-    if (!hasActiveJob) return;
+    if (!session || !recordings.some((recording) => isActiveProcessing(recording.processingStatus))) return;
     const timer = window.setInterval(() => { refreshLibrary().catch((caught) => setError(asMessage(caught))); }, 5000);
     return () => window.clearInterval(timer);
   }, [recordings, refreshLibrary, session]);
@@ -413,16 +433,14 @@ export default function TranscriptStudio() {
         if (cancelled) return;
         await refreshLibrary();
         if (detail.transcript?.currentRevisionId || detail.processingJob?.status === "ready") {
-          await loadEditor(detail);
+          await Promise.all([loadEditor(detail), loadEvidence(detail)]);
           setNotice("Transcript ready.");
         }
-      } catch (caught) {
-        if (!cancelled) setError(asMessage(caught));
-      }
+      } catch (caught) { if (!cancelled) setError(asMessage(caught)); }
     };
     const timer = window.setInterval(() => void poll(), 3000);
     return () => { cancelled = true; window.clearInterval(timer); };
-  }, [loadEditor, refreshLibrary, refreshSelected, selected?.id, selected?.processingJob?.status, session]);
+  }, [loadEditor, loadEvidence, refreshLibrary, refreshSelected, selected?.id, selected?.processingJob?.status, session]);
 
   useEffect(() => {
     if (!editorDirty || !editorTranscriptId || !editorBaseRevisionId) return;
@@ -432,62 +450,44 @@ export default function TranscriptStudio() {
         p_transcript_id: editorTranscriptId,
         p_base_revision_id: editorBaseRevisionId,
         p_text_overrides: textOverrides,
-        p_speaker_overrides: speakerOverrides
+        p_speaker_overrides: legacySpeakerOverrides
       });
-      if (saveError) {
-        setSaveState("error");
-        setError(asMessage(saveError));
-        return;
-      }
+      if (saveError) { setSaveState("error"); setError(asMessage(saveError)); return; }
       setEditorDirty(false);
       setSaveState("saved");
     }, 900);
     return () => window.clearTimeout(timer);
-  }, [client, editorBaseRevisionId, editorDirty, editorTranscriptId, speakerOverrides, textOverrides]);
+  }, [client, editorBaseRevisionId, editorDirty, editorTranscriptId, legacySpeakerOverrides, textOverrides]);
 
   async function openRecording(recordingId: string) {
-    setError(null);
-    setNotice(null);
-    setPlaybackUrl(null);
-    setSearch("");
-    setSearchCursor(0);
+    setError(null); setNotice(null); setPlaybackUrl(null); setSearch(""); setSearchCursor(0); setPlaybackMs(0);
     try {
       const detail = await refreshSelected(recordingId);
-      await loadEditor(detail);
+      await Promise.all([loadEditor(detail), loadEvidence(detail)]);
       const { data: signed, error: signedError } = await client.storage.from(detail.sourceAsset.storageBucket).createSignedUrl(detail.sourceAsset.storagePath, 60 * 60);
       if (signedError) throw signedError;
       setPlaybackUrl(signed.signedUrl);
-    } catch (caught) {
-      setError(asMessage(caught));
-    }
+    } catch (caught) { setError(asMessage(caught)); }
   }
 
   async function invokeWorker(jobId: string) {
     const { data, error: workerError } = await client.functions.invoke("newsroom-transcript-worker", { body: { jobId, workspaceId: FORUM_WORKSPACE_ID } });
     if (workerError) throw workerError;
-    return data as { state?: string; totalChunks?: number; readyChunks?: number } | null;
+    return data as { state?: string } | null;
   }
 
   async function retryTranscription(jobId: string, recordingId: string) {
     setError(null);
     try {
       const worker = await invokeWorker(jobId);
-      if (worker?.state === "chunks_required") setNotice("This long recording still needs its local audio chunks prepared from the original file.");
-      else if (worker?.state === "chunk_failed_terminal") setNotice("One audio chunk needs attention before this transcript can finish.");
-      else setNotice("Transcription restarted. It will continue in the background.");
-      await refreshLibrary();
-      await refreshSelected(recordingId);
-    } catch (caught) {
-      setError(asMessage(caught));
-    }
+      setNotice(worker?.state === "chunks_required" ? "This long recording still needs its local audio chunks prepared from the original file." : "Transcription restarted. It will continue in the background.");
+      await refreshLibrary(); await refreshSelected(recordingId);
+    } catch (caught) { setError(asMessage(caught)); }
   }
 
   async function prepareLongRecording(jobId: string, sourceFile: File, activeSession: Session) {
     let completedChunks = 0;
-    for await (const chunk of prepareTranscriptionChunks(sourceFile, (fraction: number, message: string) => {
-      setPhase(message);
-      setProgress(0.57 + fraction * 0.15);
-    })) {
+    for await (const chunk of prepareTranscriptionChunks(sourceFile, (fraction: number, message: string) => { setPhase(message); setProgress(0.57 + fraction * 0.15); })) {
       const chunkLabel = `${chunk.sequence} of ${chunk.totalChunks}`;
       setPhase(`Hashing audio chunk ${chunkLabel}`);
       const chunkHash = await hashBlobSha256(chunk.blob);
@@ -551,39 +551,54 @@ export default function TranscriptStudio() {
         ? "Original preserved. Chunk preparation is complete. Transcription will continue in the background."
         : "Original preserved. Transcription is running in the background. You can leave this page.");
       setFile(null); setTitle(""); setNewRecordingOpen(false);
-      await refreshLibrary();
-      await openRecording(recordingId);
+      await refreshLibrary(); await openRecording(recordingId);
     } catch (caught) { setError(asMessage(caught)); }
     finally { setUploadBusy(false); setPhase(null); }
   }
 
   const effectiveSegments = useMemo<EffectiveSegment[]>(() => (selected?.transcript?.segments ?? []).map((segment) => ({
     ...segment,
-    effectiveText: textOverrides[segment.id] ?? segment.text,
-    effectiveSpeaker: speakerOverrides[segment.id] ?? segment.providerSpeaker ?? ""
-  })), [selected, speakerOverrides, textOverrides]);
+    effectiveText: textOverrides[segment.id] ?? segment.text
+  })), [selected, textOverrides]);
 
-  const cleanParagraphs = useMemo(() => buildCleanParagraphs(effectiveSegments), [effectiveSegments]);
+  const segmentMap = useMemo(() => new Map(effectiveSegments.map((segment) => [segment.id, segment])), [effectiveSegments]);
+
+  const effectiveUtterances = useMemo(() => evidence.utterances.map((utterance) => {
+    const linked = utterance.transcriptSegmentIds.map((id) => segmentMap.get(id)).filter((segment): segment is EffectiveSegment => Boolean(segment));
+    return {
+      ...utterance,
+      effectiveText: linked.length ? linked.map((segment) => segment.effectiveText.trim()).filter(Boolean).join(" ").replace(/\s+/g, " ").trim() : utterance.text,
+      speakerLabel: utterance.speaker?.displayName || utterance.speaker?.providerSpeakerKey || ""
+    };
+  }), [evidence.utterances, segmentMap]);
+
   const searchMatches = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return [] as string[];
-    return effectiveSegments.filter((segment) => `${segment.effectiveSpeaker} ${segment.effectiveText}`.toLowerCase().includes(query)).map((segment) => segment.id);
+    return effectiveSegments.filter((segment) => segment.effectiveText.toLowerCase().includes(query)).map((segment) => segment.id);
   }, [effectiveSegments, search]);
-  const speakers = useMemo(() => Array.from(new Set(effectiveSegments.map((segment) => segment.effectiveSpeaker.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b)), [effectiveSegments]);
+
+  const draftChangeCount = Object.keys(textOverrides).length;
+  const currentRevision = revisionHistory.find((revision) => revision.isCurrent) ?? null;
+  const activeUtteranceId = effectiveUtterances.find((utterance) => playbackMs >= utterance.startMs && playbackMs <= utterance.endMs)?.id ?? null;
 
   function jumpTo(startMs: number) {
     if (!audioRef.current) return;
     audioRef.current.currentTime = startMs / 1000;
+    setPlaybackMs(startMs);
     void audioRef.current.play();
   }
+
   function skip(seconds: number) {
     if (!audioRef.current) return;
     audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime + seconds);
   }
+
   function setRate(rate: number) {
     setPlaybackRate(rate);
     if (audioRef.current) audioRef.current.playbackRate = rate;
   }
+
   function updateText(segment: EffectiveSegment, value: string) {
     setTextOverrides((current) => {
       const next = { ...current };
@@ -592,28 +607,51 @@ export default function TranscriptStudio() {
     });
     setEditorDirty(true); setSaveState("saving");
   }
-  function updateSpeaker(segment: EffectiveSegment, value: string) {
-    const clean = value.trimStart();
-    setSpeakerOverrides((current) => {
-      const next = { ...current };
-      const provider = segment.providerSpeaker ?? "";
-      if (clean.trim() === provider.trim() || !clean.trim()) delete next[segment.id]; else next[segment.id] = clean;
-      return next;
-    });
-    setEditorDirty(true); setSaveState("saving");
-  }
+
   function navigateSearch(direction: 1 | -1) {
     if (searchMatches.length === 0) return;
     const next = (searchCursor + direction + searchMatches.length) % searchMatches.length;
     setSearchCursor(next);
     segmentRefs.current[searchMatches[next]]?.scrollIntoView({ behavior: "smooth", block: "center" });
   }
+
+  async function checkpointRevision() {
+    if (!editorTranscriptId || checkpointBusy || draftChangeCount === 0) return;
+    setCheckpointBusy(true); setError(null);
+    try {
+      const { data, error: checkpointError } = await client.rpc("newsroom_checkpoint_transcript_revision", { p_transcript_id: editorTranscriptId });
+      if (checkpointError) throw checkpointError;
+      const result = data as { created?: boolean; ordinal?: number } | null;
+      const detail = await refreshSelected(selected!.id);
+      await Promise.all([loadEditor(detail), loadEvidence(detail)]);
+      setNotice(result?.created ? `Saved as human revision ${result.ordinal}. Machine transcript remains preserved.` : "No new text changes to save as a revision.");
+    } catch (caught) { setError(asMessage(caught)); }
+    finally { setCheckpointBusy(false); }
+  }
+
+  async function assignSpeaker(cluster: SpeakerCluster) {
+    const displayName = (speakerNames[cluster.id] ?? "").trim();
+    if (!displayName) return;
+    setError(null);
+    try {
+      const { error: assignmentError } = await client.rpc("transcript_core_confirm_speaker_assignment", {
+        p_speaker_cluster_id: cluster.id,
+        p_target_kind: "label",
+        p_target_ref: `newsroom-label:${displayName.toLowerCase().replace(/\s+/g, "-")}`,
+        p_display_name: displayName
+      });
+      if (assignmentError) throw assignmentError;
+      const nextEvidence = await getEvidence(client, selected!.id);
+      setEvidence(nextEvidence);
+      setNotice(`${displayName} applied to this speaker cluster.`);
+    } catch (caught) { setError(asMessage(caught)); }
+  }
+
   async function copyTranscript(mode: "clean" | "timestamped") {
-    const segments = effectiveSegments.filter((segment) => segment.effectiveText.trim());
-    if (!segments.length) return;
+    if (!effectiveSegments.length) return;
     const text = mode === "timestamped"
-      ? segments.map((segment) => `${segment.effectiveSpeaker ? `${segment.effectiveSpeaker} · ` : ""}${formatClock(segment.startMs)}\n${segment.effectiveText}`).join("\n\n")
-      : buildCleanParagraphs(segments).map((paragraph) => `${paragraph.speaker ? `${paragraph.speaker}\n` : ""}${paragraph.text}`).join("\n\n");
+      ? effectiveSegments.filter((segment) => segment.effectiveText.trim()).map((segment) => `${formatClock(segment.startMs)}\n${segment.effectiveText}`).join("\n\n")
+      : effectiveUtterances.map((utterance) => `${utterance.speakerLabel ? `${utterance.speakerLabel}\n` : ""}${utterance.effectiveText}`).join("\n\n");
     await navigator.clipboard.writeText(text);
     setNotice(mode === "timestamped" ? "Transcript copied with timestamps." : "Clean transcript copied.");
   }
@@ -623,6 +661,7 @@ export default function TranscriptStudio() {
 
   const transcriptReady = Boolean(selected?.transcript?.currentRevisionId && selected.transcript.segments.length);
   const selectedStatus = selected?.processingJob?.status ?? null;
+  const hasDiarization = evidence.speakerClusters.length > 0 && evidence.analysisProvider !== "newsroom-utterance-v1";
 
   return (
     <div className="transcript-studio">
@@ -660,7 +699,7 @@ export default function TranscriptStudio() {
             </header>
             {playbackUrl && (
               <div className="studio-player">
-                <audio ref={audioRef} controls preload="metadata" src={playbackUrl} />
+                <audio ref={audioRef} controls preload="metadata" src={playbackUrl} onTimeUpdate={(event) => setPlaybackMs(event.currentTarget.currentTime * 1000)} />
                 <div className="studio-player-tools">
                   <button type="button" onClick={() => skip(-5)}>−5s</button><button type="button" onClick={() => skip(5)}>+5s</button>
                   <label><span>Speed</span><select value={playbackRate} onChange={(event: ChangeEvent<HTMLSelectElement>) => setRate(Number(event.target.value))}><option value={0.75}>0.75×</option><option value={1}>1×</option><option value={1.25}>1.25×</option><option value={1.5}>1.5×</option><option value={2}>2×</option></select></label>
@@ -674,14 +713,20 @@ export default function TranscriptStudio() {
               <>
                 <div className="studio-editor-toolbar">
                   <div className="studio-view-toggle" role="group" aria-label="Transcript view"><button type="button" className={viewMode === "clean" ? "active" : ""} onClick={() => setViewMode("clean")}>Clean</button><button type="button" className={viewMode === "raw" ? "active" : ""} onClick={() => setViewMode("raw")}>Raw</button></div>
-                  <div className="studio-search"><input value={search} onChange={(event: ChangeEvent<HTMLInputElement>) => { setSearch(event.target.value); setSearchCursor(0); }} placeholder="Search transcript" /><span>{search ? `${searchMatches.length} matches` : `${effectiveSegments.length} segments`}</span>{searchMatches.length > 0 && <><button type="button" onClick={() => navigateSearch(-1)}>↑</button><button type="button" onClick={() => navigateSearch(1)}>↓</button></>}</div>
+                  <div className="studio-search"><input value={search} onChange={(event: ChangeEvent<HTMLInputElement>) => { setSearch(event.target.value); setSearchCursor(0); }} placeholder="Search transcript" /><span>{search ? `${searchMatches.length} matches` : `${effectiveUtterances.length} utterances`}</span>{searchMatches.length > 0 && <><button type="button" onClick={() => navigateSearch(-1)}>↑</button><button type="button" onClick={() => navigateSearch(1)}>↓</button></>}</div>
                   <div className="studio-copy-actions"><button type="button" onClick={() => void copyTranscript("clean")}>Copy clean</button><button type="button" onClick={() => void copyTranscript("timestamped")}>Copy timestamps</button></div>
                 </div>
-                <div className="studio-editor-meta"><span>Machine source: {selected.transcript?.provider ?? "provider"}</span><span className={`save-${saveState}`}>{saveState === "saving" ? "Saving edits…" : saveState === "saved" ? "Edits saved" : saveState === "error" ? "Save failed" : "Machine transcript"}</span></div>
+                <div className="studio-editor-meta">
+                  <span>{currentRevision ? `${currentRevision.revisionKind === "machine" ? "Machine" : "Human"} revision ${currentRevision.ordinal}` : "Transcript revision"} · {effectiveUtterances.length} source-linked utterances</span>
+                  <span className={`save-${saveState}`}>{saveState === "saving" ? "Saving draft…" : saveState === "saved" ? "Draft saved" : saveState === "error" ? "Save failed" : "No draft edits"}</span>
+                </div>
                 {viewMode === "clean" ? (
-                  <div className="studio-clean-view"><p className="studio-clean-note">Clean view groups adjacent machine segments into readable paragraphs without changing the words. Switch to Raw to edit text or speaker labels.</p>{cleanParagraphs.map((paragraph) => <article key={paragraph.id} className="studio-paragraph"><button type="button" className="studio-time" onClick={() => jumpTo(paragraph.startMs)}>{formatClock(paragraph.startMs)}</button><div>{paragraph.speaker && <strong className="studio-speaker-name">{paragraph.speaker}</strong>}<p>{paragraph.text}</p></div></article>)}</div>
+                  <div className="studio-clean-view">
+                    <p className="studio-clean-note">Clean view now uses Transcript Core utterances linked back to the exact underlying segments and audio. Reporter edits remain a draft until saved as a human revision.</p>
+                    {effectiveUtterances.map((utterance) => <article key={utterance.id} className={`studio-paragraph${activeUtteranceId === utterance.id ? " search-hit" : ""}`}><button type="button" className="studio-time" onClick={() => jumpTo(utterance.startMs)}>{formatClock(utterance.startMs)}</button><div>{utterance.speakerLabel && <strong className="studio-speaker-name">{utterance.speakerLabel}</strong>}<p>{utterance.effectiveText}</p></div></article>)}
+                  </div>
                 ) : (
-                  <div className="studio-raw-view">{effectiveSegments.map((segment) => <article key={segment.id} ref={(node: HTMLElement | null) => { segmentRefs.current[segment.id] = node; }} className={`studio-segment${searchMatches.includes(segment.id) ? " search-hit" : ""}`}><button type="button" className="studio-time" onClick={() => jumpTo(segment.startMs)}>{formatClock(segment.startMs)}</button><div className="studio-segment-body"><input className="studio-speaker-input" value={segment.effectiveSpeaker} list="studio-speaker-list" onChange={(event: ChangeEvent<HTMLInputElement>) => updateSpeaker(segment, event.target.value)} placeholder="Speaker" aria-label={`Speaker at ${formatClock(segment.startMs)}`} /><textarea value={segment.effectiveText} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateText(segment, event.target.value)} rows={Math.max(2, Math.ceil(segment.effectiveText.length / 90))} aria-label={`Transcript text at ${formatClock(segment.startMs)}`} /></div></article>)}<datalist id="studio-speaker-list">{speakers.map((speaker) => <option value={speaker} key={speaker} />)}</datalist></div>
+                  <div className="studio-raw-view">{effectiveSegments.map((segment) => <article key={segment.id} ref={(node: HTMLElement | null) => { segmentRefs.current[segment.id] = node; }} className={`studio-segment${searchMatches.includes(segment.id) ? " search-hit" : ""}`}><button type="button" className="studio-time" onClick={() => jumpTo(segment.startMs)}>{formatClock(segment.startMs)}</button><div className="studio-segment-body"><textarea value={segment.effectiveText} onChange={(event: ChangeEvent<HTMLTextAreaElement>) => updateText(segment, event.target.value)} rows={Math.max(2, Math.ceil(segment.effectiveText.length / 90))} aria-label={`Transcript text at ${formatClock(segment.startMs)}`} /></div></article>)}</div>
                 )}
               </>
             )}
@@ -690,9 +735,10 @@ export default function TranscriptStudio() {
       </main>
 
       <aside className="studio-inspector">
-        <section><p className="eyebrow">Transcript</p><h3>Workspace</h3><dl><div><dt>Status</dt><dd>{selected ? processingLabel(selectedStatus, transcriptReady) : "—"}</dd></div><div><dt>Speakers</dt><dd>{speakers.length || "—"}</dd></div><div><dt>Edits</dt><dd>{Object.keys(textOverrides).length}</dd></div></dl></section>
-        <section><h3>Speakers</h3>{speakers.length ? <ul className="studio-speaker-list">{speakers.map((speaker) => <li key={speaker}>{speaker}</li>)}</ul> : <p className="studio-muted">Speaker detection is the next intelligence pass. For now, speaker names can be assigned in Raw view.</p>}</section>
-        <section><h3>Coming into this rail</h3><p className="studio-muted">Highlights, notes, review progress and reporting tools will live here instead of crowding the transcript.</p></section>
+        <section><p className="eyebrow">Evidence</p><h3>Transcript</h3><dl><div><dt>Revision</dt><dd>{currentRevision ? `${currentRevision.revisionKind} ${currentRevision.ordinal}` : "—"}</dd></div><div><dt>Utterances</dt><dd>{evidence.utterances.length || "—"}</dd></div><div><dt>Raw segments</dt><dd>{effectiveSegments.length || "—"}</dd></div><div><dt>Draft edits</dt><dd>{draftChangeCount}</dd></div></dl>{draftChangeCount > 0 && <button type="button" className="studio-new-button" disabled={checkpointBusy || saveState === "saving"} onClick={() => void checkpointRevision()}>{checkpointBusy ? "Saving revision…" : "Save human revision"}</button>}</section>
+        <section><h3>Speaker structure</h3>{hasDiarization ? evidence.speakerClusters.map((cluster) => <div key={cluster.id} className="studio-upload-card"><small>{cluster.providerSpeakerKey} · {cluster.rangeCount} ranges</small><input value={speakerNames[cluster.id] ?? ""} onChange={(event: ChangeEvent<HTMLInputElement>) => setSpeakerNames((current) => ({ ...current, [cluster.id]: event.target.value }))} placeholder="Name this speaker" /><button type="button" onClick={() => void assignSpeaker(cluster)}>Apply name</button></div>) : <p className="studio-muted">No real speaker analysis has run yet. Newsroom is no longer treating paragraph breaks or manual segment labels as speaker identity.</p>}</section>
+        <section><h3>Processing</h3><dl><div><dt>Provider</dt><dd>{usage.providers[0]?.provider ?? selected?.transcript?.provider ?? "—"}</dd></div><div><dt>Audio</dt><dd>{formatDuration(usage.audioSeconds)}</dd></div><div><dt>Requests</dt><dd>{usage.requestCount || "—"}</dd></div><div><dt>Paid equivalent</dt><dd>{usage.estimatedPaidEquivalentUsd > 0 ? `$${usage.estimatedPaidEquivalentUsd.toFixed(3)}` : "—"}</dd></div></dl></section>
+        <section><h3>Revision history</h3>{revisionHistory.length ? <ul className="studio-speaker-list">{revisionHistory.slice().reverse().map((revision) => <li key={revision.id}>{revision.isCurrent ? "Current · " : ""}{revision.revisionKind} revision {revision.ordinal}</li>)}</ul> : <p className="studio-muted">No revision history yet.</p>}</section>
       </aside>
 
       {(notice || error) && <div className={`studio-toast${error ? " error" : ""}`}>{error || notice}<button type="button" onClick={() => { setError(null); setNotice(null); }}>×</button></div>}

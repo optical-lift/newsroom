@@ -8,6 +8,7 @@ const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const GROQ_API_KEY = Deno.env.get("GROQ_API_KEY") ?? "";
 const GROQ_MODEL = "whisper-large-v3-turbo";
+const GROQ_PAID_RATE_PER_AUDIO_HOUR_USD = 0.04;
 const DEFAULT_FREE_TIER_MAX_BYTES = 25 * 1024 * 1024;
 const CORS_HEADERS = {
   "access-control-allow-origin": "*",
@@ -74,7 +75,14 @@ type ChunkClaim = {
 };
 
 type GroqSegment = { start?: number; end?: number; text?: string };
-type GroqResponse = { text?: string; segments?: GroqSegment[]; x_groq?: { id?: string } };
+type GroqResponse = { text?: string; duration?: number; segments?: GroqSegment[]; x_groq?: { id?: string } };
+
+type SuccessfulTranscription = {
+  ok: true;
+  segments: Array<{ sequence: number; startMs: number; endMs: number; text: string; providerSpeaker: null }>;
+  providerRequestId: string;
+  audioSeconds: number;
+};
 
 const service = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false }
@@ -108,6 +116,34 @@ async function failChunk(chunk: ChunkPacket, retryable: boolean, code: string, m
     p_error_message: message.slice(0, 4000)
   });
   if (error) console.error("Transcript chunk failure state could not be persisted", error.message);
+}
+
+async function recordUsage(jobId: string, stage: string, result: SuccessfulTranscription, metadata: Record<string, unknown> = {}) {
+  const estimatedPaidEquivalentUsd = result.audioSeconds / 3600 * GROQ_PAID_RATE_PER_AUDIO_HOUR_USD;
+  const { error } = await service.rpc("transcript_core_record_processing_usage", {
+    p_job_id: jobId,
+    p_stage: stage,
+    p_provider: "groq",
+    p_provider_model: GROQ_MODEL,
+    p_provider_request_id: result.providerRequestId,
+    p_audio_seconds: result.audioSeconds,
+    p_request_count: 1,
+    p_estimated_paid_equivalent_usd: estimatedPaidEquivalentUsd,
+    p_metadata: {
+      ...metadata,
+      paidEquivalentRateUsdPerAudioHour: GROQ_PAID_RATE_PER_AUDIO_HOUR_USD,
+      pricingReferenceDate: "2026-10-01"
+    }
+  });
+  if (error) console.error("Transcript usage receipt could not be persisted", error.message);
+}
+
+async function ensureUtterances(revisionId: string | null | undefined) {
+  if (!revisionId) return;
+  const { error } = await service.rpc("transcript_core_ensure_utterance_analysis", {
+    p_transcript_revision_id: revisionId
+  });
+  if (error) console.error("Transcript utterance materialization failed", { revisionId, error: error.message });
 }
 
 async function transcribeAsset(input: { storageBucket: string; storagePath: string; offsetMs: number }) {
@@ -161,7 +197,16 @@ async function transcribeAsset(input: { storageBucket: string; storagePath: stri
     return { ok: false as const, retryable: false, code: "EMPTY_TRANSCRIPT_SEGMENTS", detail: "Groq returned no valid timestamped transcript segments." };
   }
 
-  return { ok: true as const, segments: normalized, providerRequestId: parsed.x_groq?.id ?? "" };
+  const providerDuration = Number(parsed.duration);
+  const inferredDuration = Math.max(0, ...normalized.map((segment) => (segment.endMs - input.offsetMs) / 1000));
+  const audioSeconds = Number.isFinite(providerDuration) && providerDuration > 0 ? providerDuration : inferredDuration;
+
+  return {
+    ok: true as const,
+    segments: normalized,
+    providerRequestId: parsed.x_groq?.id ?? "",
+    audioSeconds
+  } satisfies SuccessfulTranscription;
 }
 
 async function processDirectJob(packet: WorkerPacket) {
@@ -181,6 +226,8 @@ async function processDirectJob(packet: WorkerPacket) {
       p_segments: result.segments
     });
     if (completeError) throw completeError;
+    await recordUsage(packet.job_id, "transcription_direct", result);
+    await ensureUtterances(revisionId as string | null | undefined);
     await deleteQueueMessage(packet);
     return { state: "ready", revisionId, segmentCount: result.segments.length };
   } catch (error) {
@@ -219,8 +266,15 @@ async function processChunk(packet: WorkerPacket, chunk: ChunkPacket, authorizat
       p_segments: result.segments
     });
     if (completeError) throw completeError;
+    await recordUsage(packet.job_id, "transcription_chunk", result, {
+      chunkId: chunk.chunk_id,
+      chunkSequence: chunk.sequence,
+      chunkStartMs: chunk.start_ms,
+      chunkEndMs: chunk.end_ms
+    });
     const revisionId = completion?.revision_id as string | null | undefined;
     if (revisionId) {
+      await ensureUtterances(revisionId);
       await deleteQueueMessage(packet);
       return { state: "ready", revisionId };
     }
