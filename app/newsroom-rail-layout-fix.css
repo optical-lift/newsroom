@@ -1,0 +1,69 @@
+/* Final rail geometry: fixed viewport rail, no nested nav scrolling, compact global nav, attached file-tab toggle. */
+
+.newsroom-rail {
+  overflow: visible;
+}
+
+/* The global desk letters should orient, not consume the rail. */
+.newsroom-rail__nav {
+  gap: 1px;
+  padding: 9px 8px;
+}
+
+.newsroom-rail__link {
+  min-height: 38px;
+  border-radius: 6px;
+}
+
+/* Page-context navigation is a fixed part of the rail, never its own scroll surface. */
+.newsroom-rail__context {
+  flex: 0 0 auto;
+  min-height: auto;
+  max-height: none;
+  overflow: visible;
+  overscroll-behavior: auto;
+  scrollbar-width: auto;
+}
+
+.newsroom-rail__context::-webkit-scrollbar {
+  display: none;
+}
+
+.newsroom-rail__context-link {
+  min-height: 38px;
+}
+
+/* The account remains the flexible bottom anchor. */
+.newsroom-rail__account-zone {
+  margin-top: auto;
+}
+
+/* Treat expand/collapse as a tab attached to the rail edge, not a floating button. */
+.newsroom-rail__toggle {
+  right: -18px;
+  top: 27px;
+  width: 18px;
+  height: 34px;
+  border-left: 0;
+  border-radius: 0 7px 7px 0;
+  background: var(--newsroom-rail);
+  box-shadow: 1px 0 0 rgba(255,255,255,.04);
+  font-size: 15px;
+}
+
+.newsroom-rail__toggle:hover {
+  background: #1a1d1b;
+  color: #fff;
+}
+
+@media (max-height: 700px) {
+  .newsroom-rail__nav {
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .newsroom-rail__link,
+  .newsroom-rail__context-link {
+    min-height: 34px;
+  }
+}
