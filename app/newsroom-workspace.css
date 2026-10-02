@@ -1,0 +1,351 @@
+/* Second newsroom shell tranche: home, shared actions and contextual drawers. */
+
+.newsroom-home {
+  min-height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  max-width: 980px;
+  padding: 0 clamp(8px, 4vw, 42px) 9vh;
+}
+
+.newsroom-home .eyebrow {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: .12em;
+}
+
+.newsroom-home h1 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(46px, 7vw, 92px);
+  font-weight: 500;
+  line-height: .98;
+  letter-spacing: -.045em;
+}
+
+.newsroom-actions,
+.newsroom-shell .legal-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.newsroom-action,
+.newsroom-shell .legal-primary,
+.newsroom-shell .legal-secondary,
+.newsroom-shell .market-copy-button,
+.newsroom-shell .market-refresh {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 850;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.newsroom-action--primary,
+.newsroom-shell .legal-primary,
+.newsroom-shell .market-copy-button.newsroom-action--primary {
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: white;
+}
+
+.newsroom-action--secondary,
+.newsroom-shell .legal-secondary,
+.newsroom-shell .market-copy-button.newsroom-action--secondary,
+.newsroom-shell .market-refresh {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.newsroom-action--quiet {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+.newsroom-action:hover,
+.newsroom-shell .legal-primary:hover,
+.newsroom-shell .legal-secondary:hover,
+.newsroom-shell .market-refresh:hover,
+.newsroom-shell .market-copy-button:hover {
+  filter: brightness(.97);
+}
+
+.newsroom-action:focus-visible,
+.reporting-drawer__close:focus-visible,
+.transcript-tools-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.reporting-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  border: 0;
+  padding: 0;
+  background: rgba(18, 20, 18, .18);
+  cursor: default;
+}
+
+.reporting-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  width: min(380px, calc(100vw - 76px));
+  overflow-y: auto;
+  background: #f8f7f2;
+  border-left: 1px solid var(--line);
+  box-shadow: -16px 0 38px rgba(22, 32, 27, .12);
+}
+
+.reporting-drawer__header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(248, 247, 242, .97);
+  backdrop-filter: blur(10px);
+}
+
+.reporting-drawer__header p {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.reporting-drawer__header h2 {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.05;
+}
+
+.reporting-drawer__close,
+.transcript-tools-close {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.reporting-drawer__body {
+  padding: 18px 20px 34px;
+}
+
+.reporting-drawer__body > section,
+.reporting-drawer__body > div + div {
+  padding-top: 18px;
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.reporting-drawer__body > section:first-child,
+.reporting-drawer__body > div:first-child {
+  padding-top: 0;
+  margin-top: 0;
+  border-top: 0;
+}
+
+.reporting-drawer__body h3 {
+  margin: 0 0 10px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.reporting-drawer__body p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.drawer-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.drawer-metrics div {
+  padding: 13px 10px 13px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.drawer-metrics strong,
+.drawer-metrics span { display: block; }
+.drawer-metrics strong {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  font-weight: 500;
+}
+.drawer-metrics span {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
+/* Markets: actions live in the header; sources move to the shared drawer. */
+.newsroom-shell .markets-header .title-row {
+  align-items: flex-end;
+}
+.newsroom-shell .markets-header .page-heading-copy { min-width: 0; }
+.newsroom-shell .markets-header .page-heading-meta {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+.newsroom-shell .markets-header .page-heading-meta strong { color: var(--ink); }
+.newsroom-shell .market-actions { display: none; }
+.newsroom-shell .market-sources { display: none; }
+.newsroom-shell .market-block {
+  max-width: 1040px;
+  min-height: 360px;
+}
+
+/* Municipal: the meeting is the surface; custody/provenance live in the drawer. */
+.newsroom-shell .municipal-header .title-row {
+  align-items: flex-end;
+}
+.newsroom-shell .municipal-columns {
+  display: block;
+  max-width: 1120px;
+}
+.newsroom-shell .source-column { display: none; }
+.newsroom-shell .record-panel {
+  border-radius: 8px;
+}
+.newsroom-shell .municipal-source-identifiers {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+.newsroom-shell .municipal-source-identifiers div {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.newsroom-shell .municipal-source-identifiers dt {
+  color: var(--muted);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+.newsroom-shell .municipal-source-identifiers dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10px;
+}
+
+/* Legal: queue counts are context, not a permanent dashboard strip. */
+.newsroom-shell .legal-summary { display: none; }
+.newsroom-shell .legal-list { max-width: 1080px; }
+.newsroom-shell .legal-job {
+  padding: 17px 18px;
+  border-radius: 8px;
+}
+
+/* Transcript tools become the same temporary right-side support surface. */
+.transcript-tools-control {
+  position: fixed;
+  top: 30px;
+  right: 34px;
+  z-index: 55;
+}
+
+.transcript-tools-close {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 105;
+}
+
+.newsroom-shell .transcript-studio {
+  grid-template-columns: 218px minmax(0, 1fr) !important;
+}
+
+.newsroom-shell .studio-inspector {
+  display: none !important;
+}
+
+body[data-transcript-tools="open"] .newsroom-shell .studio-inspector {
+  display: block !important;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100;
+  width: min(380px, calc(100vw - 76px));
+  overflow-y: auto;
+  padding: 70px 20px 30px;
+  border-left: 1px solid var(--line);
+  background: #f8f7f2;
+  box-shadow: -16px 0 38px rgba(22, 32, 27, .12);
+}
+
+body[data-transcript-tools="open"] .newsroom-shell .studio-inspector::before {
+  content: "Transcript tools";
+  position: absolute;
+  top: 22px;
+  left: 20px;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.newsroom-shell .studio-source-hash { display: none !important; }
+.newsroom-shell .studio-document-header { padding-right: 110px; }
+
+@media (max-width: 760px) {
+  .newsroom-home { min-height: calc(100vh - 90px); }
+  .newsroom-home h1 { font-size: clamp(42px, 15vw, 64px); }
+  .reporting-drawer,
+  body[data-transcript-tools="open"] .newsroom-shell .studio-inspector {
+    width: calc(100vw - var(--newsroom-rail-width));
+  }
+  .transcript-tools-control {
+    top: 20px;
+    right: 18px;
+  }
+}
+
+/* Transcripts use the document title, not a second product banner. */
+.newsroom-shell .transcript-header > p:last-child,
+.newsroom-shell .transcript-header .status { display: none; }
+.newsroom-shell .transcript-header { padding-right: 100px; }

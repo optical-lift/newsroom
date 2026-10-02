@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import ReportingDrawer from "@/components/reporting-drawer";
 import { FORUM_WORKSPACE_ID } from "@/lib/supabase/config";
 import { getNewsroomBrowserClient } from "@/lib/supabase/browser";
 
@@ -296,52 +297,41 @@ export default function LegalNoticesDesk() {
   return (
     <>
       <style>{`
-        .legal-header { margin-bottom: 24px; }
-        .legal-header-actions { display: flex; align-items: center; gap: 10px; }
-        .legal-primary, .legal-secondary { min-height: 38px; padding: 8px 12px; border-radius: 7px; font-size: 12px; font-weight: 800; cursor: pointer; }
-        .legal-primary { border: 0; background: var(--accent); color: white; }
-        .legal-secondary { border: 1px solid var(--line); background: var(--surface); color: var(--accent); }
+        .legal-header { margin-bottom: 18px; }
+        .legal-header-actions { display: flex; align-items: center; gap: 7px; }
+        .legal-primary, .legal-secondary { min-height: 34px; padding: 7px 10px; border-radius: 6px; font-size: 10px; font-weight: 800; cursor: pointer; }
         .legal-primary:disabled, .legal-secondary:disabled { opacity: .5; cursor: wait; }
-        .legal-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 900px; margin-bottom: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
-        .legal-summary div { padding: 16px 18px; border-right: 1px solid var(--line); }
-        .legal-summary div:last-child { border-right: 0; }
-        .legal-summary strong, .legal-summary span { display: block; }
-        .legal-summary strong { font-family: Georgia, 'Times New Roman', serif; font-size: 28px; font-weight: 500; }
-        .legal-summary span { margin-top: 3px; color: var(--muted); font-size: 11px; }
-        .legal-new { max-width: 900px; margin-bottom: 18px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: #ebece6; }
+        .legal-new { max-width: 1080px; margin-bottom: 18px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: #ebece6; }
         .legal-new-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
         .legal-new label { display: grid; gap: 6px; color: #46504a; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; }
         .legal-new label:first-child { grid-column: 1 / -1; }
         .legal-new input { min-height: 42px; padding: 9px 10px; border: 1px solid #c3c7c1; border-radius: 7px; background: var(--surface); color: var(--ink); }
         .legal-new-actions { display: flex; gap: 10px; margin-top: 14px; }
-        .legal-error { max-width: 900px; margin: 0 0 16px; padding: 11px 13px; border-radius: 8px; background: #f7e8e5; color: #7b3028; font-size: 12px; }
-        .legal-list { max-width: 900px; display: grid; gap: 12px; }
-        .legal-job { padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+        .legal-error { max-width: 1080px; margin: 0 0 16px; padding: 11px 13px; border-radius: 8px; background: #f7e8e5; color: #7b3028; font-size: 12px; }
+        .legal-list { max-width: 1080px; display: grid; gap: 10px; }
+        .legal-job { padding: 17px 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
         .legal-job-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 20px; align-items: start; }
         .legal-job-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-        .legal-job h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 500; }
-        .legal-meta { margin: 6px 0 0; color: var(--muted); font-size: 12px; }
-        .legal-status { display: inline-flex; padding: 5px 8px; border-radius: 999px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+        .legal-job h2 { margin: 0; font-family: Georgia, 'Times New Roman', serif; font-size: 22px; font-weight: 500; }
+        .legal-meta { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+        .legal-status { display: inline-flex; padding: 4px 7px; border-radius: 999px; font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
         .legal-ready { background: #e3eee7; color: #22533e; }
         .legal-pending { background: #f3ecd8; color: #5c4a24; }
         .legal-run { text-align: right; }
         .legal-run strong, .legal-run span { display: block; }
-        .legal-run strong { font-size: 13px; }
-        .legal-run span { margin-top: 3px; color: var(--muted); font-size: 11px; }
-        .legal-state-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 16px; border-top: 1px solid #ecebe5; border-bottom: 1px solid #ecebe5; }
-        .legal-state-grid div { padding: 12px 10px 12px 0; }
+        .legal-run strong { font-size: 12px; }
+        .legal-run span { margin-top: 3px; color: var(--muted); font-size: 10px; }
+        .legal-state-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 14px; border-top: 1px solid #ecebe5; border-bottom: 1px solid #ecebe5; }
+        .legal-state-grid div { padding: 10px 10px 10px 0; }
         .legal-state-grid span, .legal-state-grid strong { display: block; }
-        .legal-state-grid span { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
-        .legal-state-grid strong { margin-top: 4px; font-size: 12px; }
-        .legal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
-        .legal-file { display: inline-flex; align-items: center; max-width: 260px; min-height: 38px; padding: 8px 10px; border: 1px dashed #aeb6b0; border-radius: 7px; color: var(--muted); font-size: 11px; cursor: pointer; }
+        .legal-state-grid span { color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+        .legal-state-grid strong { margin-top: 4px; font-size: 11px; }
+        .legal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 12px; }
+        .legal-file { display: inline-flex; align-items: center; max-width: 260px; min-height: 34px; padding: 7px 9px; border: 1px dashed #aeb6b0; border-radius: 6px; color: var(--muted); font-size: 10px; cursor: pointer; }
         .legal-file input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
         .legal-file span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .legal-empty { max-width: 900px; padding: 28px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--muted); }
+        .legal-empty { max-width: 1080px; padding: 28px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); }
         @media (max-width: 760px) {
-          .legal-summary { grid-template-columns: repeat(2, 1fr); }
-          .legal-summary div:nth-child(2) { border-right: 0; }
-          .legal-summary div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
           .legal-new-grid, .legal-job-main { grid-template-columns: 1fr; }
           .legal-new label:first-child { grid-column: auto; }
           .legal-run { text-align: left; }
@@ -350,23 +340,26 @@ export default function LegalNoticesDesk() {
       `}</style>
 
       <header className="page-header legal-header">
-        <p className="eyebrow">Mitchell Republic</p>
         <div className="title-row">
-          <h1>Legal Notices</h1>
+          <div>
+            <p className="eyebrow">Mitchell Republic</p>
+            <h1>Legal Notices</h1>
+          </div>
           <div className="legal-header-actions">
             <button className="legal-primary" type="button" onClick={() => setShowNew((value) => !value)}>
               {showNew ? "Close" : "New notice"}
             </button>
+            <ReportingDrawer label="Queue" title="Legal notice queue" eyebrow="Workflow state">
+              <div className="drawer-metrics" aria-label="Legal notice queue summary">
+                <div><strong>{summary.ready}</strong><span>Ready</span></div>
+                <div><strong>{summary.proof}</strong><span>Proof work</span></div>
+                <div><strong>{summary.approval}</strong><span>Awaiting approval</span></div>
+                <div><strong>{summary.payment}</strong><span>Awaiting payment</span></div>
+              </div>
+            </ReportingDrawer>
           </div>
         </div>
       </header>
-
-      <section className="legal-summary" aria-label="Legal notice queue summary">
-        <div><strong>{summary.ready}</strong><span>Ready</span></div>
-        <div><strong>{summary.proof}</strong><span>Proof work</span></div>
-        <div><strong>{summary.approval}</strong><span>Awaiting approval</span></div>
-        <div><strong>{summary.payment}</strong><span>Awaiting payment</span></div>
-      </section>
 
       {showNew ? (
         <form className="legal-new" onSubmit={createNotice}>

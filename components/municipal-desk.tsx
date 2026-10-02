@@ -1,3 +1,4 @@
+import ReportingDrawer from "@/components/reporting-drawer";
 import { certifiedMunicipalQuery, getMunicipalSnapshot, type MunicipalQuery } from "@/lib/municipal/civicclerk";
 
 function displayDate(value: string) {
@@ -65,7 +66,6 @@ export default async function MunicipalDesk({ query }: { query: MunicipalQuery }
             <h1>Municipal</h1>
             <span className="status status-source-error">Source unresolved</span>
           </div>
-          <p>Read-only access to Mitchell CivicClerk records through the CivicClerk Bridge.</p>
         </header>
 
         <LookupForm query={query} />
@@ -91,14 +91,55 @@ export default async function MunicipalDesk({ query }: { query: MunicipalQuery }
   return (
     <>
       <header className="page-header municipal-header">
-        <p className="eyebrow">Mitchell Republic · public municipal records</p>
         <div className="title-row">
-          <h1>Municipal</h1>
-          <span className="status status-connected">Live source</span>
+          <div>
+            <p className="eyebrow">Mitchell Republic · public municipal records</p>
+            <h1>Municipal</h1>
+          </div>
+          <div className="newsroom-actions">
+            <span className="status status-connected">Live source</span>
+            <ReportingDrawer label="Sources" title="Meeting sources" eyebrow="Custody and provenance">
+              <section>
+                <h3>Source identifiers</h3>
+                <dl className="municipal-source-identifiers">
+                  <div><dt>Event ID</dt><dd>{snapshot.event.id ?? "—"}</dd></div>
+                  <div><dt>Agenda ID</dt><dd>{snapshot.event.agendaId ?? "—"}</dd></div>
+                  <div><dt>Category ID</dt><dd>{snapshot.category.id ?? "—"}</dd></div>
+                </dl>
+              </section>
+
+              <section>
+                <h3>Published files</h3>
+                <div className="file-stack">
+                  {snapshot.event.publishedFiles.length ? snapshot.event.publishedFiles.map((file, index) => (
+                    <div className="file-row" key={`${file.fileId ?? index}`}>
+                      <div>
+                        <strong>{file.name || file.type || "Published file"}</strong>
+                        <span>{file.kind || "other"}</span>
+                      </div>
+                      <code>{file.fileId ?? "—"}</code>
+                    </div>
+                  )) : <p className="muted-copy">No published files were returned.</p>}
+                </div>
+              </section>
+
+              <section>
+                <h3>Where this came from</h3>
+                <dl className="provenance-list">
+                  <div><dt>Tenant</dt><dd>{snapshot.tenant}</dd></div>
+                  <div><dt>Requested body</dt><dd>{query.body}</dd></div>
+                  <div><dt>Resolved category</dt><dd>{snapshot.category.name || "—"}</dd></div>
+                  <div><dt>Retrieved</dt><dd>{displayRetrievedAt(snapshot.provenance.retrievedAt)}</dd></div>
+                </dl>
+                <div className="source-links">
+                  <a href={result.bridgeUrl} rel="noreferrer" target="_blank">Bridge snapshot ↗</a>
+                  {snapshot.provenance.agendaApi && <a href={snapshot.provenance.agendaApi} rel="noreferrer" target="_blank">CivicClerk agenda API ↗</a>}
+                  {snapshot.provenance.eventsApi && <a href={snapshot.provenance.eventsApi} rel="noreferrer" target="_blank">CivicClerk events API ↗</a>}
+                </div>
+              </section>
+            </ReportingDrawer>
+          </div>
         </div>
-        <p>
-          This desk reads Mitchell CivicClerk meetings through the Bridge and presents source state only—no editorial ranking, summary inference or unpublished newsroom material.
-        </p>
       </header>
 
       <LookupForm query={query} />
@@ -109,11 +150,6 @@ export default async function MunicipalDesk({ query }: { query: MunicipalQuery }
           <h2>{meetingLabel}</h2>
           <p>{snapshot.event.location || "Location not supplied in the meeting record."}</p>
         </div>
-        <dl className="meeting-ids">
-          <div><dt>Event ID</dt><dd>{snapshot.event.id ?? "—"}</dd></div>
-          <div><dt>Agenda ID</dt><dd>{snapshot.event.agendaId ?? "—"}</dd></div>
-          <div><dt>Category ID</dt><dd>{snapshot.category.id ?? "—"}</dd></div>
-        </dl>
       </section>
 
       <section className="fact-strip" aria-label="Meeting source counts">
@@ -159,40 +195,6 @@ export default async function MunicipalDesk({ query }: { query: MunicipalQuery }
           </ol>
           {hiddenItemCount > 0 && <p className="quiet-note">{hiddenItemCount} additional structured items are present in the bridge response.</p>}
         </section>
-
-        <aside className="source-column">
-          <section className="record-panel">
-            <p className="eyebrow">Published files</p>
-            <h2>Custody</h2>
-            <div className="file-stack">
-              {snapshot.event.publishedFiles.length ? snapshot.event.publishedFiles.map((file, index) => (
-                <div className="file-row" key={`${file.fileId ?? index}`}>
-                  <div>
-                    <strong>{file.name || file.type || "Published file"}</strong>
-                    <span>{file.kind || "other"}</span>
-                  </div>
-                  <code>{file.fileId ?? "—"}</code>
-                </div>
-              )) : <p className="muted-copy">No published files were returned.</p>}
-            </div>
-          </section>
-
-          <section className="record-panel">
-            <p className="eyebrow">Source provenance</p>
-            <h2>Where this came from</h2>
-            <dl className="provenance-list">
-              <div><dt>Tenant</dt><dd>{snapshot.tenant}</dd></div>
-              <div><dt>Requested body</dt><dd>{query.body}</dd></div>
-              <div><dt>Resolved category</dt><dd>{snapshot.category.name || "—"}</dd></div>
-              <div><dt>Retrieved</dt><dd>{displayRetrievedAt(snapshot.provenance.retrievedAt)}</dd></div>
-            </dl>
-            <div className="source-links">
-              <a href={result.bridgeUrl} rel="noreferrer" target="_blank">Bridge snapshot ↗</a>
-              {snapshot.provenance.agendaApi && <a href={snapshot.provenance.agendaApi} rel="noreferrer" target="_blank">CivicClerk agenda API ↗</a>}
-              {snapshot.provenance.eventsApi && <a href={snapshot.provenance.eventsApi} rel="noreferrer" target="_blank">CivicClerk events API ↗</a>}
-            </div>
-          </section>
-        </aside>
       </div>
 
       <section className="record-panel minutes-panel">

@@ -4,10 +4,12 @@ import { useState } from "react";
 
 export default function MarketCopyButton({
   text,
-  label = "Copy"
+  label = "Copy",
+  variant = "primary"
 }: {
   text: string;
   label?: string;
+  variant?: "primary" | "secondary";
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -22,7 +24,7 @@ export default function MarketCopyButton({
   }
 
   return (
-    <button className="market-copy-button" type="button" onClick={copy}>
+    <button className={`market-copy-button newsroom-action newsrom-action--${variant}`} type="button" onClick={copy}>
       {copied ? "Copied" : label}
     </button>
   );
