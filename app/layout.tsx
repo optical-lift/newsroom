@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./municipal.css";
+import "./newsroom-shell.css";
 
 export const metadata: Metadata = {
   title: "Optical Lift Newsroom",

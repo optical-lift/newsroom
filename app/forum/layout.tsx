@@ -1,5 +1,4 @@
-import Link from "next/link";
-import SignOutButton from "@/components/sign-out-button";
+import NewsroomShell from "@/components/newsroom-shell";
 import { requireForumMember } from "@/lib/auth/forum";
 import { forumWorkspace } from "@/lib/newsroom";
 
@@ -12,22 +11,12 @@ export default async function ForumLayout({ children }: Readonly<{ children: Rea
   await requireForumMember();
 
   return (
-    <div className="workspace-shell">
-      <aside className="sidebar">
-        <Link href="/forum" className="wordmark">Optical Lift <span>Newsroom</span></Link>
-        <div className="workspace-id">
-          <p className="eyebrow">Workspace</p>
-          <strong>{forumWorkspace.publication}</strong>
-          <span>{forumWorkspace.organization}</span>
-        </div>
-        <nav aria-label="Mitchell Republic workspace">
-          {links.map((link) => (
-            <Link href={link.href} key={link.href}>{link.label}</Link>
-          ))}
-        </nav>
-        <SignOutButton />
-      </aside>
-      <main className="workspace-main">{children}</main>
-    </div>
+    <NewsroomShell
+      publication={forumWorkspace.publication}
+      organization={forumWorkspace.organization}
+      links={links}
+    >
+      {children}
+    </NewsroomShell>
   );
 }

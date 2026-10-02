@@ -14,25 +14,53 @@ function todayLabel() {
 }
 
 export default function ForumTodayPage() {
+  const activeDesks = forumWorkspace.desks.filter((desk) => desk.status === "connected");
+  const laterDesks = forumWorkspace.desks.filter((desk) => desk.status !== "connected");
+
   return (
     <>
-      <header className="page-header">
-        <p className="eyebrow">{todayLabel()}</p>
-        <h1>Today</h1>
+      <header className="today-header">
+        <div>
+          <p className="eyebrow">{todayLabel()}</p>
+          <h1>Today</h1>
+        </div>
+        <p>One reporting desk for source records, recordings, recurring copy and production work.</p>
       </header>
 
-      <section className="desk-grid" aria-label="Newsroom desks">
-        {forumWorkspace.desks.map((desk) => (
-          <Link className="desk-card" href={`/forum/${desk.slug}`} key={desk.slug}>
-            <div className="desk-card-top">
-              <h2>{desk.label}</h2>
-              <span className={`status status-${desk.status}`}>{desk.statusLabel}</span>
+      <div className="today-workspace">
+        <section className="today-section" aria-labelledby="today-reporting-tools">
+          <div className="today-section-head">
+            <h2 id="today-reporting-tools">Reporting tools</h2>
+            <span>{activeDesks.length} available</span>
+          </div>
+          <div className="today-tool-list">
+            {activeDesks.map((desk) => (
+              <Link className="today-tool-row" href={`/forum/${desk.slug}`} key={desk.slug}>
+                <span className="today-tool-title">{desk.label}</span>
+                <span className="today-tool-description">{desk.description}</span>
+                <span className="today-tool-open">Open →</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+
+        {laterDesks.length ? (
+          <section className="today-section today-later" aria-labelledby="today-later-tools">
+            <div className="today-section-head">
+              <h2 id="today-later-tools">Coming later</h2>
             </div>
-            <p>{desk.description}</p>
-            <span className="card-link">Open →</span>
-          </Link>
-        ))}
-      </section>
+            <div className="today-tool-list">
+              {laterDesks.map((desk) => (
+                <div className="today-tool-row" key={desk.slug}>
+                  <span className="today-tool-title">{desk.label}</span>
+                  <span className="today-tool-description">{desk.description}</span>
+                  <span className="today-tool-open">Not available</span>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </div>
     </>
   );
 }
