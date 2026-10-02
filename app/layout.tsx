@@ -6,6 +6,7 @@ import "./newsroom-workspace.css";
 import "./newsroom-context.css";
 import "./transcripts.css";
 import "./newsroom-rail-fix.css";
+import "./newsroom-icon-render-fix.css";
 
 export const metadata: Metadata = {
   title: "Optical Lift Newsroom",
