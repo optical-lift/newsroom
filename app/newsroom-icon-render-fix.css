@@ -1,0 +1,7 @@
+/* The context label text is intentionally hidden in the collapsed rail. Give the
+   masked icon span its own box so removing the old number does not collapse its height. */
+.newsroom-rail__context-mark {
+  height: 38px;
+  min-height: 38px;
+  align-self: center;
+}
