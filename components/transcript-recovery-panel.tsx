@@ -12,13 +12,20 @@ import {
 
 type TranscriptRecoveryPanelProps = {
   workspaceId: string;
+  recordingId?: string;
 };
 
 function asMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error ?? "Unknown error");
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message;
+    try { return JSON.stringify(error); } catch { /* fall through */ }
+  }
+  return String(error ?? "Unknown error");
 }
 
-export default function TranscriptRecoveryPanel({ workspaceId }: TranscriptRecoveryPanelProps) {
+export default function TranscriptRecoveryPanel({ workspaceId, recordingId }: TranscriptRecoveryPanelProps) {
   const client = useMemo(() => getNewsroomBrowserClient(), []);
   const [session, setSession] = useState<Session | null>(null);
   const [candidates, setCandidates] = useState<TranscriptResumeCandidate[]>([]);
@@ -30,8 +37,8 @@ export default function TranscriptRecoveryPanel({ workspaceId }: TranscriptRecov
 
   const refresh = useCallback(async () => {
     const next = await loadTranscriptResumeCandidates(client, workspaceId);
-    setCandidates(next);
-  }, [client, workspaceId]);
+    setCandidates(recordingId ? next.filter((candidate) => candidate.recordingId === recordingId) : next);
+  }, [client, recordingId, workspaceId]);
 
   useEffect(() => {
     let alive = true;
@@ -97,18 +104,18 @@ export default function TranscriptRecoveryPanel({ workspaceId }: TranscriptRecov
         return (
           <div key={candidate.recordingId} className="transcript-recovery-row">
             <div className="transcript-recovery-copy">
-              <p className="eyebrow">Preserved recording</p>
+              <p className="eyebrow">Preparation required</p>
               <strong>{candidate.title}</strong>
               <p>
-                The original audio is safe, but long-recording preparation did not finish.
-                {candidate.existingChunkCount > 0 ? ` ${candidate.existingChunkCount} prepared ${candidate.existingChunkCount === 1 ? "chunk is" : "chunks are"} already preserved.` : ""}
+                The original audio is safe, but this long recording has not started transcription yet.
+                {candidate.existingChunkCount > 0 ? ` ${candidate.existingChunkCount} prepared ${candidate.existingChunkCount === 1 ? "chunk is" : "chunks are"} already preserved.` : " Newsroom needs to prepare provider-sized audio chunks before transcription can begin."}
               </p>
               <small>{formatBytes(candidate.sourceByteSize)} · no re-upload required</small>
               {busy && phase ? <small className="transcript-recovery-phase">{phase}</small> : null}
               {busy ? <progress max={1} value={progress} /> : null}
             </div>
             <button type="button" className="button-primary" disabled={Boolean(busyId)} onClick={() => void resume(candidate)}>
-              {busy ? "Resuming…" : "Resume transcription"}
+              {busy ? "Preparing…" : "Prepare & resume"}
             </button>
           </div>
         );
