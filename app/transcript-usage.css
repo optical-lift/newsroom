@@ -1,0 +1,101 @@
+/* First-class provider usage telemetry for transcript work. */
+
+.transcript-usage-meter {
+  display: grid;
+  grid-template-columns: minmax(220px, .9fr) minmax(180px, 1fr) minmax(180px, 1fr) minmax(150px, .7fr);
+  gap: 18px;
+  align-items: center;
+  margin: 0 0 16px;
+  padding: 11px 0 13px;
+  border-bottom: 1px solid var(--newsroom-rule, var(--line));
+}
+
+.transcript-usage-summary,
+.transcript-usage-budget,
+.transcript-usage-requests {
+  min-width: 0;
+}
+
+.transcript-usage-summary .eyebrow {
+  margin-bottom: 4px;
+}
+
+.transcript-usage-summary > strong {
+  display: block;
+  color: var(--ink);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.transcript-usage-summary > span,
+.transcript-usage-budget small,
+.transcript-usage-requests small,
+.transcript-usage-note {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.transcript-usage-summary > span {
+  display: block;
+  margin-top: 3px;
+}
+
+.transcript-usage-budget-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.transcript-usage-budget-head span,
+.transcript-usage-requests > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.transcript-usage-budget-head strong,
+.transcript-usage-requests > strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.transcript-usage-budget progress {
+  display: block;
+  width: 100%;
+  height: 7px;
+  margin-bottom: 5px;
+}
+
+.transcript-usage-requests {
+  display: grid;
+  gap: 4px;
+}
+
+.transcript-usage-note {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+}
+
+@media (max-width: 1050px) {
+  .transcript-usage-meter {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 680px) {
+  .transcript-usage-meter {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .transcript-usage-note {
+    grid-column: 1;
+  }
+}

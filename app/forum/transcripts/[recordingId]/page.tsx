@@ -1,5 +1,6 @@
 import TranscriptDocument from "@/components/transcript-document";
 import TranscriptRecoveryPanel from "@/components/transcript-recovery-panel";
+import TranscriptUsageMeter from "@/components/transcript-usage-meter";
 import { forumTranscriptWorkspaceBinding, requireForumContext } from "@/lib/auth/forum";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,7 @@ export default async function TranscriptRecordingPage({ params }: TranscriptReco
   return (
     <>
       <TranscriptRecoveryPanel workspaceId={transcriptBinding.externalRef} recordingId={recordingId} />
+      <TranscriptUsageMeter recordingId={recordingId} />
       <TranscriptDocument
         publicationId={context.publication.id}
         publicationName={context.publication.name}

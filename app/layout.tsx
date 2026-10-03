@@ -7,6 +7,7 @@ import "./newsroom-workspace.css";
 import "./newsroom-context.css";
 import "./transcripts.css";
 import "./transcript-recovery.css";
+import "./transcript-usage.css";
 import "./newsroom-rail-fix.css";
 import "./newsroom-icon-render-fix.css";
 import "./newsroom-rail-layout-fix.css";
